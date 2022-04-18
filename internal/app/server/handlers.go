@@ -50,7 +50,7 @@ func (s *Server)ShortLinkHandler(w http.ResponseWriter, r *http.Request) {
 	// RESPONSE
 	w.Header().Set("content-type","text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintln(w,  "http://" + s.Addr + "/" + shortIdLink)
+	fmt.Fprint(w,  "http://" + s.Addr + "/" + shortIdLink)
 }
 
 // Эндпоинт GET /{id} принимает в качестве URL-параметра идентификатор
