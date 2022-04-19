@@ -48,10 +48,10 @@ func (s *Server)ShortLinkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Сокращаем и сохраняем
-	shortIdLink := MD5(string(longLink))[:8]
-	_, valid := s.Database[shortIdLink]
+	shortIDLink := MD5(string(longLink))[:8]
+	_, valid := s.Database[shortIDLink]
 	if !valid {
-		s.Database[shortIdLink] = string(longLink)
+		s.Database[shortIDLink] = string(longLink)
 	} else {
 		log.Panicln("Ссылка существует")
 	}
@@ -59,7 +59,7 @@ func (s *Server)ShortLinkHandler(w http.ResponseWriter, r *http.Request) {
 	// RESPONSE
 	w.Header().Set("content-type","text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprint(w,  "http://" + s.Addr + "/" + shortIdLink)
+	fmt.Fprint(w,  "http://" + s.Addr + "/" +shortIDLink)
 }
 
 // Эндпоинт GET /{id} принимает в качестве URL-параметра идентификатор
@@ -74,9 +74,9 @@ func (s *Server)RestoreLinkHandler(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.RequestURI()
 
 	if url != ""  {
-		shortIdLink := url[1:]
+		shortIDLink := url[1:]
 
-		longLink, valid := s.Database[shortIdLink]
+		longLink, valid := s.Database[shortIDLink]
 		if valid {
 			// RESPONSE
 			w.Header().Set("Location", longLink)

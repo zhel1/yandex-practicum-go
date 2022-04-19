@@ -77,6 +77,7 @@ func TestServer_RestoreLinkHandler(t *testing.T) {
 				t.Errorf("Expected status code %d, got %d", tt.want.code, w.Code)
 			}
 
+			defer res.Body.Close()
 			if tt.want.code != http.StatusBadRequest {
 				//проверка на корректность url
 				longurl := res.Header.Get("Location")
