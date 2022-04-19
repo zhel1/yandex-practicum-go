@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 )
 
 func (s *Server)CommonHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,22 +28,30 @@ func (s *Server)CommonHandler(w http.ResponseWriter, r *http.Request) {
 // URL в виде текстовой строки в теле.
 func (s *Server)ShortLinkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
+		http.Error(w, "Only POST requests are allowed!", http.StatusBadRequest)
 		return
 	}
 
 	// читаем Body
-	longLink, err := io.ReadAll(r.Body)
+	longLinkBytes, err := io.ReadAll(r.Body)
+	longLink := string(longLinkBytes)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//проверка на корректность url
+	_, err = url.ParseRequestURI(longLink)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	//Сокращаем и сохраняем
 	shortIdLink := MD5(string(longLink))[:8]
-	_, valid := dataBase[shortIdLink]
+	_, valid := s.Database[shortIdLink]
 	if !valid {
-		dataBase[shortIdLink] = string(longLink)
+		s.Database[shortIdLink] = string(longLink)
 	} else {
 		log.Panicln("Ссылка существует")
 	}
@@ -67,7 +76,7 @@ func (s *Server)RestoreLinkHandler(w http.ResponseWriter, r *http.Request) {
 	if url != ""  {
 		shortIdLink := url[1:]
 
-		longLink, valid := dataBase[shortIdLink]
+		longLink, valid := s.Database[shortIdLink]
 		if valid {
 			// RESPONSE
 			w.Header().Set("Location", longLink)

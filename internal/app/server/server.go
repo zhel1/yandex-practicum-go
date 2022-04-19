@@ -5,10 +5,11 @@ import (
 	"net/http"
 )
 
-var dataBase = make(map[string]string)
+//var Database = make(map[string]string)
 
 type Server struct {
-	Addr string
+	Addr     string
+	Database map[string]string
 }
 
 func (s *Server) StartServer() {
@@ -17,6 +18,8 @@ func (s *Server) StartServer() {
 	server := &http.Server{
 		Addr: s.Addr,
 	}
+
+	s.Database = make(map[string]string)
 
 	log.Fatalln(server.ListenAndServe())
 }
