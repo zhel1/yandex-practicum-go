@@ -52,8 +52,8 @@ func AddLink(db *storage.DB, addr string) http.HandlerFunc {
 
 func GetLink(db *storage.DB, addr string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		linkId := chi.URLParam(r, "id")
-		longLink, valid := db.ShortURL[linkId]
+		linkID := chi.URLParam(r, "id")
+		longLink, valid := db.ShortURL[linkID]
 		if valid {
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)

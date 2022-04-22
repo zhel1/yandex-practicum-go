@@ -80,6 +80,7 @@ func TestGetLink(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, http.MethodGet, "/"+tt.value, "")
+			defer resp.Body.Close()
 			assert.Equal(t, tt.wantCode, resp.StatusCode)
 
 			if resp.StatusCode == http.StatusTemporaryRedirect {
@@ -137,6 +138,7 @@ func TestAddLink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db.ShortURL = make(map[string]string)
 			resp, body := testRequest(t, ts, http.MethodPost, "/", tt.body)
+			defer resp.Body.Close()
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 
 			if tt.want.code != http.StatusBadRequest {
