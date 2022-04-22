@@ -1,11 +1,10 @@
 package main
 
-import "github.com/zhel1/yandex-practicum-go/internal/app/server"
+import "github.com/zhel1/yandex-practicum-go/internal/server"
 
 func main() {
-
-	serverAddr := "localhost:8080"
-
-	s := server.Server {Addr: serverAddr}
+	s := server.Server{
+		Addr: "localhost:8080",
+	}
 	s.StartServer()
 }
