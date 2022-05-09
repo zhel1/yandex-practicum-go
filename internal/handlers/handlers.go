@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
@@ -11,14 +13,15 @@ import (
 	"net/url"
 )
 
-func NewRouter(db *storage.DB, addr string) chi.Router {
+func NewRouter(st storage.Storage, baseUrl string) chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", AddLink(db, addr))
-	r.Get("/{id}", GetLink(db, addr))
+	r.Post("/", AddLink(st, baseUrl))
+	r.Post("/api/shorten", AddLinkJSON(st, baseUrl))
+	r.Get("/{id}", GetLink(st, baseUrl))
 	return r
 }
 
-func AddLink(db *storage.DB, addr string) http.HandlerFunc {
+func AddLink(st storage.Storage, baseUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		longLinkBytes, err := io.ReadAll(r.Body)
@@ -29,36 +32,75 @@ func AddLink(db *storage.DB, addr string) http.HandlerFunc {
 
 		longLink := string(longLinkBytes)
 
-		_, err = url.ParseRequestURI(longLink)
-		if err != nil {
+		if _, err = url.ParseRequestURI(longLink); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		shortIDLink := utils.MD5(longLink)[:8]
-		_, valid := db.ShortURL[shortIDLink]
-		if !valid {
-			db.ShortURL[shortIDLink] = longLink
-		} else {
-			log.Panicln("Ссылка существует")
+		err = st.Put(shortIDLink, longLink)
+		if err != nil {
+			log.Panicln(err)
 		}
 
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, "http://"+addr+"/"+shortIDLink)
+		fmt.Fprint(w, baseUrl + shortIDLink)
 	}
-
 }
 
-func GetLink(db *storage.DB, addr string) http.HandlerFunc {
+func AddLinkJSON(st storage.Storage, baseUrl string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		b := struct {
+			Url string	`json:"url"`
+		}{
+			Url: "",
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if _, err := url.ParseRequestURI(b.Url); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		shortIDLink := utils.MD5(b.Url)[:8]
+		err := st.Put(shortIDLink, b.Url)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		res := struct {
+			Result string `json:"result"`
+		}{
+			Result: baseUrl + shortIDLink,
+		}
+
+		buf := bytes.NewBuffer([]byte{})
+		encoder := json.NewEncoder(buf)
+		encoder.SetEscapeHTML(false)
+		encoder.Encode(res)
+
+		w.Header().Set("content-type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, buf)
+	}
+}
+
+func GetLink(st storage.Storage, baseUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		linkID := chi.URLParam(r, "id")
-		longLink, valid := db.ShortURL[linkID]
-		if valid {
+		longLink, err := st.Get(linkID)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
 		}
 	}
 }

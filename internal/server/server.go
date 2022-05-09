@@ -9,14 +9,14 @@ import (
 
 type Server struct {
 	Addr string
+	BaseUrl string
+	Storage storage.Storage
 }
 
 func (s *Server) StartServer() {
-	dbConn := storage.NewDBConn()
-
-	server := &http.Server{
+	server := &http.Server {
 		Addr:    s.Addr,
-		Handler: handlers.NewRouter(dbConn, s.Addr),
+		Handler: handlers.NewRouter(s.Storage, s.BaseUrl),
 	}
 
 	log.Fatalln(server.ListenAndServe())
