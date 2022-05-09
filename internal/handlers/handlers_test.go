@@ -42,8 +42,8 @@ func TestGetLink(t *testing.T) {
 	st.Put("1234567", "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6")
 	st.Put("1234568", "https://yandex.ru/news/")
 
-	baseUrl := "http://localhost:8080/"
-	r := NewRouter(st, baseUrl)
+	baseURL := "http://localhost:8080/"
+	r := NewRouter(st, baseURL)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -94,7 +94,7 @@ func TestGetLink(t *testing.T) {
 }
 
 func TestAddLink(t *testing.T) {
-	baseUrl := "http://localhost:8080/"
+	baseURL := "http://localhost:8080/"
 
 	type want struct {
 		code        int
@@ -135,7 +135,7 @@ func TestAddLink(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st := storage.NewInMemory()
-			ts := httptest.NewServer(NewRouter(st, baseUrl))
+			ts := httptest.NewServer(NewRouter(st, baseURL))
 			defer ts.Close()
 
 			resp, body := testRequest(t, ts, http.MethodPost, "/", tt.body)
@@ -147,7 +147,7 @@ func TestAddLink(t *testing.T) {
 				require.NoError(t, err)
 
 				//get only id
-				id := strings.Replace(body, baseUrl, "", -1)
+				id := strings.Replace(body, baseURL, "", -1)
 				_, err = st.Get(id)
 				require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestAddLink(t *testing.T) {
 }
 
 func TestAddLinkJSON(t *testing.T) {
-	baseUrl := "http://localhost:8080/"
+	baseURL := "http://localhost:8080/"
 
 	type want struct {
 		code        int
@@ -199,7 +199,7 @@ func TestAddLinkJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st := storage.NewInMemory()
-			ts := httptest.NewServer(NewRouter(st, baseUrl))
+			ts := httptest.NewServer(NewRouter(st, baseURL))
 			defer ts.Close()
 
 			resp, body := testRequest(t, ts, http.MethodPost, "/api/shorten", tt.body)
@@ -220,7 +220,7 @@ func TestAddLinkJSON(t *testing.T) {
 				require.NoError(t, err)
 
 				//get only id
-				id := strings.Replace(res.Result, baseUrl, "", -1)
+				id := strings.Replace(res.Result, baseURL, "", -1)
 				_, err = st.Get(id)
 				require.NoError(t, err)
 

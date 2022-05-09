@@ -13,15 +13,15 @@ import (
 	"net/url"
 )
 
-func NewRouter(st storage.Storage, baseUrl string) chi.Router {
+func NewRouter(st storage.Storage, baseURL string) chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", AddLink(st, baseUrl))
-	r.Post("/api/shorten", AddLinkJSON(st, baseUrl))
-	r.Get("/{id}", GetLink(st, baseUrl))
+	r.Post("/", AddLink(st, baseURL))
+	r.Post("/api/shorten", AddLinkJSON(st, baseURL))
+	r.Get("/{id}", GetLink(st, baseURL))
 	return r
 }
 
-func AddLink(st storage.Storage, baseUrl string) http.HandlerFunc {
+func AddLink(st storage.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		longLinkBytes, err := io.ReadAll(r.Body)
@@ -45,17 +45,17 @@ func AddLink(st storage.Storage, baseUrl string) http.HandlerFunc {
 
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, baseUrl + shortIDLink)
+		fmt.Fprint(w, baseURL+ shortIDLink)
 	}
 }
 
-func AddLinkJSON(st storage.Storage, baseUrl string) http.HandlerFunc {
+func AddLinkJSON(st storage.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		b := struct {
-			Url string	`json:"url"`
+			URL string `json:"url"`
 		}{
-			Url: "",
+			URL: "",
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
@@ -63,13 +63,13 @@ func AddLinkJSON(st storage.Storage, baseUrl string) http.HandlerFunc {
 			return
 		}
 
-		if _, err := url.ParseRequestURI(b.Url); err != nil {
+		if _, err := url.ParseRequestURI(b.URL); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		shortIDLink := utils.MD5(b.Url)[:8]
-		err := st.Put(shortIDLink, b.Url)
+		shortIDLink := utils.MD5(b.URL)[:8]
+		err := st.Put(shortIDLink, b.URL)
 		if err != nil {
 			log.Panicln(err)
 		}
@@ -77,7 +77,7 @@ func AddLinkJSON(st storage.Storage, baseUrl string) http.HandlerFunc {
 		res := struct {
 			Result string `json:"result"`
 		}{
-			Result: baseUrl + shortIDLink,
+			Result: baseURL + shortIDLink,
 		}
 
 		buf := bytes.NewBuffer([]byte{})
@@ -91,7 +91,7 @@ func AddLinkJSON(st storage.Storage, baseUrl string) http.HandlerFunc {
 	}
 }
 
-func GetLink(st storage.Storage, baseUrl string) http.HandlerFunc {
+func GetLink(st storage.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		linkID := chi.URLParam(r, "id")
 		longLink, err := st.Get(linkID)

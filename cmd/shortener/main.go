@@ -13,8 +13,16 @@ type Config struct {
 	FileStoragePath	string		`env:"FILE_STORAGE_PATH"`
 }
 
+func NewConfig() Config {
+	return Config {
+		Addr: "localhost:8080",
+		BaseURL: "http://localhost:8080/",
+		FileStoragePath: "",
+	}
+}
+
 func main() {
-	var cfg Config
+	cfg := NewConfig()
 	err := env.Parse(&cfg)
 
 	if err != nil {
@@ -37,8 +45,8 @@ func main() {
 	defer strg.Close()
 
 	s := server.Server {
-		Addr: cfg.Addr,
-		BaseUrl: cfg.BaseURL,
+		Addr:    cfg.Addr,
+		BaseURL: cfg.BaseURL,
 		Storage: strg,
 	}
 	s.StartServer()

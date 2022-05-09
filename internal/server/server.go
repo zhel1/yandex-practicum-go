@@ -8,15 +8,15 @@ import (
 )
 
 type Server struct {
-	Addr string
-	BaseUrl string
+	Addr    string
+	BaseURL string
 	Storage storage.Storage
 }
 
 func (s *Server) StartServer() {
 	server := &http.Server {
 		Addr:    s.Addr,
-		Handler: handlers.NewRouter(s.Storage, s.BaseUrl),
+		Handler: handlers.NewRouter(s.Storage, s.BaseURL),
 	}
 
 	log.Fatalln(server.ListenAndServe())
