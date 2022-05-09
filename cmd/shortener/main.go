@@ -16,7 +16,7 @@ type Config struct {
 func NewConfig() Config {
 	return Config {
 		Addr: "localhost:8080",
-		BaseURL: "http://localhost:8080/",
+		BaseURL: "http://localhost:8080",
 		FileStoragePath: "",
 	}
 }
@@ -27,10 +27,6 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if cfg.Addr == "" || cfg.BaseURL == "" {
-		log.Fatal("BASE_URL or SERVER_ADDRESS env variables not found.")
 	}
 
 	var strg storage.Storage
@@ -46,7 +42,7 @@ func main() {
 
 	s := server.Server {
 		Addr:    cfg.Addr,
-		BaseURL: cfg.BaseURL,
+		BaseURL: cfg.BaseURL + "/",
 		Storage: strg,
 	}
 	s.StartServer()
