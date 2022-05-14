@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/caarlos0/env/v6"
 	"github.com/zhel1/yandex-practicum-go/internal/server"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
@@ -13,18 +14,14 @@ type Config struct {
 	FileStoragePath	string		`env:"FILE_STORAGE_PATH"`
 }
 
-func NewConfig() Config {
-	return Config {
-		Addr: "localhost:8080",
-		BaseURL: "http://localhost:8080",
-		FileStoragePath: "",
-	}
-}
-
 func main() {
-	cfg := NewConfig()
-	err := env.Parse(&cfg)
+	var cfg Config
+	flag.StringVar(&cfg.Addr, "host", "localhost", "host to listen on")
+	flag.StringVar(&cfg.BaseURL,"b", "http://localhost:8080", "Base address of the resulting shortened URL")
+	flag.StringVar(&cfg.FileStoragePath,"f", "C:\\Users\\Денис\\go\\src\\yandex-practicum-go\\bd.txt", "Path to the file with shortened URLs")
 
+	//settings redefinition, if evn variables is used
+	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
