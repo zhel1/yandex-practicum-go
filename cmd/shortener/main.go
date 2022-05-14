@@ -18,7 +18,7 @@ func main() {
 	var cfg Config
 	flag.StringVar(&cfg.Addr, "host", "localhost", "host to listen on")
 	flag.StringVar(&cfg.BaseURL,"b", "http://localhost:8080", "Base address of the resulting shortened URL")
-	flag.StringVar(&cfg.FileStoragePath,"f", "C:\\Users\\Денис\\go\\src\\yandex-practicum-go\\bd.txt", "Path to the file with shortened URLs")
+	flag.StringVar(&cfg.FileStoragePath,"f", "", "Path to the file with shortened URLs")
 
 	//settings redefinition, if evn variables is used
 	err := env.Parse(&cfg)
