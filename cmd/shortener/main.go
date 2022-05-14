@@ -16,7 +16,7 @@ type Config struct {
 
 func main() {
 	var cfg Config
-	flag.StringVar(&cfg.Addr, "host", "localhost", "host to listen on")
+	flag.StringVar(&cfg.Addr, "a", "localhost:8080", "host to listen on")
 	flag.StringVar(&cfg.BaseURL,"b", "http://localhost:8080", "Base address of the resulting shortened URL")
 	flag.StringVar(&cfg.FileStoragePath,"f", "", "Path to the file with shortened URLs")
 	flag.Parse()
