@@ -19,6 +19,7 @@ func main() {
 	flag.StringVar(&cfg.Addr, "host", "localhost", "host to listen on")
 	flag.StringVar(&cfg.BaseURL,"b", "http://localhost:8080", "Base address of the resulting shortened URL")
 	flag.StringVar(&cfg.FileStoragePath,"f", "", "Path to the file with shortened URLs")
+	flag.Parse()
 
 	//settings redefinition, if evn variables is used
 	err := env.Parse(&cfg)
