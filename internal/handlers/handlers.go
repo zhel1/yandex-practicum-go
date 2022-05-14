@@ -30,32 +30,40 @@ type gzipWriter struct {
 }
 
 func (w gzipWriter) Write(b []byte) (int, error) {
-	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
 	return w.Writer.Write(b)
 }
 
 func gzipHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get(`Content-Encoding`), `gzip`) {
+			gzReader, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			r.Body = gzReader
+			defer gzReader.Close()
+		}
+
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		gzWriter, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
 			io.WriteString(w, err.Error())
 			return
 		}
-		defer gz.Close()
+		defer gzWriter.Close()
 
 		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gzWriter}, r)
 	})
 }
 //**********************************************************************************************************************
 func AddLink(st storage.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		longLinkBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -72,12 +80,12 @@ func AddLink(st storage.Storage, baseURL string) http.HandlerFunc {
 		shortIDLink := utils.MD5(longLink)[:8]
 		err = st.Put(shortIDLink, longLink)
 		if err != nil {
-			log.Panicln(err)
+			log.Println(err)
 		}
 
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, baseURL+ shortIDLink)
+		fmt.Fprint(w, baseURL + shortIDLink)
 	}
 }
 
