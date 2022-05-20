@@ -4,16 +4,18 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"sync"
 )
 
 type InFile struct {
+	sync.RWMutex
 	file *os.File
 	cache map[string]string
 	encoder *json.Encoder
 }
 
 func NewInFile(fileName string) (Storage, error){
-	file, err := os.OpenFile(fileName, os.O_RDWR | os.O_CREATE, 0777)
+	file, err := os.OpenFile(fileName, os.O_RDWR | os.O_CREATE, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +38,15 @@ func NewInFile(fileName string) (Storage, error){
 }
 
 func (s *InFile) Close() error {
+	s.Lock()
+	defer s.Unlock()
 	s.cache = nil
 	return s.file.Close()
 }
 
 func (s *InFile) Get(key string) (string, error) {
+	s.RLock()
+	defer s.RUnlock()
 	if v, ok := s.cache[key]; ok {
 		return v, nil
 	}
@@ -48,6 +54,8 @@ func (s *InFile) Get(key string) (string, error) {
 }
 
 func (s *InFile) Put(key string, value string) error {
+	s.Lock()
+	defer s.Unlock()
 	if _, ok := s.cache[key]; ok {
 		return ErrAlreadyExists
 	}
