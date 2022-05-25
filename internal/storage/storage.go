@@ -1,11 +1,16 @@
 package storage
 
-type DB struct {
-	ShortURL map[string]string
-}
+import (
+	"errors"
+)
 
-func NewDBConn() *DB {
-	return &DB{
-		ShortURL: make(map[string]string),
-	}
+var (
+	ErrNotFound      = errors.New("not found")
+	ErrAlreadyExists = errors.New("already exists")
+)
+
+type Storage interface {
+	Get(key string) (string, error)
+	Put(key, value string) error
+	Close() error
 }

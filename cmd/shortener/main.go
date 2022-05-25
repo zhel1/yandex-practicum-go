@@ -1,10 +1,34 @@
 package main
 
-import "github.com/zhel1/yandex-practicum-go/internal/server"
+import (
+	"github.com/zhel1/yandex-practicum-go/internal/config"
+	"github.com/zhel1/yandex-practicum-go/internal/server"
+	"github.com/zhel1/yandex-practicum-go/internal/storage"
+	"log"
+)
 
 func main() {
-	s := server.Server{
-		Addr: "localhost:8080",
+	var cfg config.Config
+	err := cfg.Parse()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var strg storage.Storage
+	if cfg.FileStoragePath != "" {
+		strg, err = storage.NewInFile(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		strg = storage.NewInMemory()
+	}
+	defer strg.Close()
+
+	s := server.Server {
+		Addr:    cfg.Addr,
+		BaseURL: cfg.BaseURL + "/",
+		Storage: strg,
 	}
 	s.StartServer()
 }
