@@ -32,7 +32,6 @@ type HandlersTestSuite struct {
 	cookieEncriptor  *utils.Crypto
 	router           *chi.Mux
 	ts               *httptest.Server
-	//cookie 			 *cookiejar.Jar
 }
 
 func (ht *HandlersTestSuite) SetupTest() {
@@ -49,37 +48,11 @@ func (ht *HandlersTestSuite) SetupTest() {
 	ht.cookieHandler, _ = middleware.NewCookieHandler(ht.cookieEncriptor)
 	ht.router = chi.NewRouter()
 	ht.ts = httptest.NewServer(ht.router)
-
-	//var clienID string
-	//ht.cookie, _ = cookiejar.New(nil)
-	//ht.cookie.SetCookies(nil, []*http.Cookie{ht.cookieHandler.CreateNewCookie(&clienID)})
 }
 
 func TestHandlersTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlersTestSuite))
 }
-
-//func (ht *HandlersTestSuite)testRequest(t *testing.T, method, path string, body string) (*http.Response, string) {
-//	req, err := http.NewRequest(method, ht.ts.URL + path, strings.NewReader(body))
-//	require.NoError(t, err)
-//
-//	//disable redirect
-//	client := &http.Client{
-//		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-//			return http.ErrUseLastResponse
-//		},
-//	}
-//
-//	resp, err := client.Do(req)
-//   	require.NoError(t, err)
-//
-//	respBody, err := ioutil.ReadAll(resp.Body)
-//	require.NoError(t, err)
-//
-//	defer resp.Body.Close()
-//
-//	return resp, string(respBody)
-//}
 
 func (ht *HandlersTestSuite)TestGetLink() {
 	ht.router.Get("/{id}", ht.urlHandler.GetLink())

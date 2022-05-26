@@ -16,7 +16,7 @@ type Config struct {
 func (c* Config)Parse() error {
 	flag.StringVar(&c.Addr, "a", "localhost:8080", "Host to listen on")
 	flag.StringVar(&c.BaseURL,"b", "http://localhost:8080/", "Base address of the resulting shortened URL")
-	flag.StringVar(&c.FileStoragePath,"f", "", "Path to the file with shortened URLs")
+	flag.StringVar(&c.FileStoragePath,"f", "C:\\Users\\Денис\\go\\src\\yandex-practicum-go\\db.txt", "Path to the file with shortened URLs")
 	flag.StringVar(&c.UserKey,"p", "", "UserKey for encryption cookie")
 	flag.Parse()
 

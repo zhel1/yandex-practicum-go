@@ -36,11 +36,7 @@ func NewInFile(fileName string) (Storage, error){
 }
 
 func (s *InFile) Get(key string) (string, error) {
-	if v, err := s.cache.Get(key); err != nil {
-		return v, nil
-	} else {
-		return "", err
-	}
+	return s.cache.Get(key)
 }
 
 func (s *InFile) GetUserLinks(id string) (map[string]string, error){
