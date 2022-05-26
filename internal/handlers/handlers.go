@@ -18,7 +18,7 @@ import (
 
 func shortenURL(st storage.Storage, context context.Context, baseURL, URL string) (string, error) {
 	userIDCtx := ""
-	if id := context.Value(middleware.UserIDCtxName); id != nil {
+	if id := context.Value(middleware.UserIDCtxNameText(middleware.UserIDCtxName)); id != nil {
 		userIDCtx = id.(string)
 	}
 
@@ -136,7 +136,7 @@ type ResponseFullURL struct {
 func (h *URLHandler)GetUserLinks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var userIDCtx string
-		if id := r.Context().Value(middleware.UserIDCtxName); id != nil {
+		if id := r.Context().Value(middleware.UserIDCtxNameText(middleware.UserIDCtxName)); id != nil {
 			userIDCtx = id.(string)
 		}
 

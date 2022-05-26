@@ -10,13 +10,13 @@ var (
 )
 //**********************************************************************************************************************
 type UserData struct {
-	Id string				`json:"id"`
-	URLs map[string]string	`json:"urls"`
+	ID   string            `json:"id"`
+	URLs map[string]string `json:"urls"`
 }
 
 func NewUserData(id string) UserData {
 	return UserData{
-		Id: id,
+		ID:   id,
 		URLs: make(map[string]string),
 	}
 }

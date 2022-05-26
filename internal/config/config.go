@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v6"
+	"strings"
 )
 
 type Config struct {
@@ -20,5 +21,11 @@ func (c* Config)Parse() error {
 	flag.Parse()
 
 	//settings redefinition, if evn variables is used
-	return env.Parse(c)
+	err := env.Parse(c)
+
+	if !strings.HasSuffix(c.BaseURL, "/") {
+		c.BaseURL = c.BaseURL + "/"
+	}
+
+	return err
 }

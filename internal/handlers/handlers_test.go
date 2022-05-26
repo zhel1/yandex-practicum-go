@@ -310,7 +310,7 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 		ht.T().Run(tt.name, func(t *testing.T) {
 			client := resty.New()
 			client.SetCookie(&http.Cookie{
-				Name: middleware.UserIDCtxName,
+				Name: middleware.UserIDCtxNameText(middleware.UserIDCtxName),
 				Value: crypto.Encode(userID),
 				Path:  "/",
 			})
