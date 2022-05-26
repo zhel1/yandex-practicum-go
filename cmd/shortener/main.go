@@ -26,9 +26,13 @@ func main() {
 	defer strg.Close()
 
 	s := server.Server {
-		Addr:    cfg.Addr,
-		BaseURL: cfg.BaseURL + "/",
+		Config: &cfg,
 		Storage: strg,
 	}
-	s.StartServer()
+	err = s.StartServer()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
+
+

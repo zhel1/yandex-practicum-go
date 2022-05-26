@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"os"
-	"sync"
 )
 
 type InFile struct {
-	sync.RWMutex
 	file *os.File
-	cache map[string]string
+	cache Storage
 	encoder *json.Encoder
 }
 
@@ -20,7 +18,7 @@ func NewInFile(fileName string) (Storage, error){
 		return nil, err
 	}
 
-	data := make(map[string]string)
+	data := NewInMemory()
 
 	if stat, _ := file.Stat(); stat.Size() != 0 {
 		decoder := json.NewDecoder(file)
@@ -31,35 +29,36 @@ func NewInFile(fileName string) (Storage, error){
 	}
 
 	return &InFile {
-		file:    file,
+		file: file,
 		cache: data,
 		encoder: json.NewEncoder(file),
 	}, nil
 }
 
+func (s *InFile) Get(key string) (string, error) {
+	if v, err := s.cache.Get(key); err != nil {
+		return v, nil
+	} else {
+		return "", err
+	}
+}
+
+func (s *InFile) GetUserLinks(id string) (map[string]string, error){
+	return s.cache.GetUserLinks(id)
+}
+
+func (s *InFile) Put(id string, key, value string) error {
+	if err := s.cache.Put(id, key, value); err != nil {
+		return err
+	}
+
+	//rewrite all file
+	s.file.Truncate(0)
+	s.file.Seek(0,0)
+	return s.encoder.Encode(&s.cache)
+}
+
 func (s *InFile) Close() error {
-	s.Lock()
-	defer s.Unlock()
 	s.cache = nil
 	return s.file.Close()
-}
-
-func (s *InFile) Get(key string) (string, error) {
-	s.RLock()
-	defer s.RUnlock()
-	if v, ok := s.cache[key]; ok {
-		return v, nil
-	}
-	return "", ErrNotFound
-}
-
-func (s *InFile) Put(key string, value string) error {
-	s.Lock()
-	defer s.Unlock()
-	if _, ok := s.cache[key]; ok {
-		return ErrAlreadyExists
-	}
-	s.cache[key] = value
-
-	return s.encoder.Encode(&s.cache)
 }

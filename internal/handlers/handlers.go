@@ -2,79 +2,58 @@ package handlers
 
 import (
 	"bytes"
-	"compress/gzip"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/zhel1/yandex-practicum-go/internal/config"
+	"github.com/zhel1/yandex-practicum-go/internal/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
-func NewRouter(st storage.Storage, baseURL string) chi.Router {
-	r := chi.NewRouter()
-	r.Use(gzipHandle)
-	r.Post("/", AddLink(st, baseURL))
-	r.Post("/api/shorten", AddLinkJSON(st, baseURL))
-	r.Get("/{id}", GetLink(st, baseURL))
-	return r
-}
+func shortenURL(st storage.Storage, context context.Context, baseURL, URL string) (string, error) {
+	userIDCtx := ""
+	if id := context.Value(middleware.UserIDCtxName); id != nil {
+		userIDCtx = id.(string)
+	}
 
-func shortenURL(st storage.Storage, baseURL, URL string) (string, error) {
+	if userIDCtx == "" {
+		return "", errors.New("empty user id")
+	}
+
 	if _, err := url.ParseRequestURI(URL); err != nil {
 		return "", err
 	}
 
 	shortIDLink := utils.MD5(URL)[:8]
 
-	if err := st.Put(shortIDLink, URL); err != nil {
+	if err := st.Put(userIDCtx, shortIDLink, URL); err != nil {
 		return "", err
 	}
 	return baseURL + shortIDLink, nil
 }
 //**********************************************************************************************************************
-type gzipWriter struct {
-	http.ResponseWriter
-	Writer io.Writer
+type URLHandler struct {
+	st storage.Storage
+	config *config.Config
 }
 
-func (w gzipWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
+func InitURLHandler(storage storage.Storage, config *config.Config) (*URLHandler, error) {
+	if storage == nil {
+		return nil, fmt.Errorf("nil Storage was passed to service URL Handler initializer")
+	}
+	if config == nil {
+		return nil, fmt.Errorf("nil Config was passed to service URL Handler initializer")
+	}
+	return &URLHandler{st: storage, config: config}, nil
 }
 
-func gzipHandle(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get(`Content-Encoding`), `gzip`) {
-			gzReader, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			r.Body = gzReader
-			defer gzReader.Close()
-		}
-
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		gzWriter, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-		if err != nil {
-			io.WriteString(w, err.Error())
-			return
-		}
-		defer gzWriter.Close()
-
-		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gzWriter}, r)
-	})
-}
-//**********************************************************************************************************************
-func AddLink(st storage.Storage, baseURL string) http.HandlerFunc {
+func (h *URLHandler)AddLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		longLinkBytes, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -82,7 +61,7 @@ func AddLink(st storage.Storage, baseURL string) http.HandlerFunc {
 			return
 		}
 
-		shortLink, err := shortenURL(st, baseURL, string(longLinkBytes))
+		shortLink, err := shortenURL(h.st, r.Context(), h.config.BaseURL, string(longLinkBytes))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -102,16 +81,15 @@ type JSONResponsetData struct {
 	Result string `json:"result"`
 }
 
-func AddLinkJSON(st storage.Storage, baseURL string) http.HandlerFunc {
+func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		b := JSONRequestData {}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		shortLink, err := shortenURL(st, baseURL, b.URL)
+		shortLink, err := shortenURL(h.st, r.Context(), h.config.BaseURL, b.URL)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -124,7 +102,10 @@ func AddLinkJSON(st storage.Storage, baseURL string) http.HandlerFunc {
 		buf := bytes.NewBuffer([]byte{})
 		encoder := json.NewEncoder(buf)
 		encoder.SetEscapeHTML(false)
-		encoder.Encode(res)
+		if err = encoder.Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		w.Header().Set("content-type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
@@ -132,10 +113,10 @@ func AddLinkJSON(st storage.Storage, baseURL string) http.HandlerFunc {
 	}
 }
 
-func GetLink(st storage.Storage, baseURL string) http.HandlerFunc {
+func (h *URLHandler)GetLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		linkID := chi.URLParam(r, "id")
-		longLink, err := st.Get(linkID)
+		longLink, err := h.st.Get(linkID)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -143,5 +124,53 @@ func GetLink(st storage.Storage, baseURL string) http.HandlerFunc {
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
+	}
+}
+
+// ResponseFullURL is used in GetUserLinks
+type ResponseFullURL struct {
+	OriginalURL  string `json:"original_url"`
+	ShortURL string `json:"short_url"`
+}
+
+func (h *URLHandler)GetUserLinks() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var userIDCtx string
+		if id := r.Context().Value(middleware.UserIDCtxName); id != nil {
+			userIDCtx = id.(string)
+		}
+
+		if userIDCtx == "" {
+			http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+			return
+		}
+
+		links, err := h.st.GetUserLinks(userIDCtx)
+		if err != nil || len(links) == 0  {
+			http.Error(w, err.Error(), http.StatusNoContent)
+			return
+		}
+
+		var responseURLs []ResponseFullURL
+		for short, orign := range links {
+			responseURL := ResponseFullURL{
+				OriginalURL: orign,
+				ShortURL: h.config.BaseURL + short,
+			}
+			responseURLs = append(responseURLs, responseURL)
+		}
+
+		//TODO remove code duplication (the same piece in AddLinkJSON)
+		buf := bytes.NewBuffer([]byte{})
+		encoder := json.NewEncoder(buf)
+		encoder.SetEscapeHTML(false)
+		if err = encoder.Encode(responseURLs); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("content-type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, buf)
 	}
 }
