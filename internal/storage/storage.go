@@ -7,6 +7,7 @@ import (
 var (
 	ErrNotFound      = errors.New("not found")
 	ErrAlreadyExists = errors.New("already exists")
+	ErrExecutionPSQL = errors.New("execution PSQL error")
 )
 //**********************************************************************************************************************
 type UserData struct {
@@ -27,7 +28,7 @@ type Pinger interface {
 //**********************************************************************************************************************
 type Storage interface {
 	Get(key string) (string, error)
-	GetUserLinks(id string) (map[string]string, error)
-	Put(id, key, value string) error
+	GetUserLinks(userID string) (map[string]string, error)
+	Put(userID, linkID, originURL string) error
 	Close() error
 }

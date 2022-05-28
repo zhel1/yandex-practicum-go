@@ -35,16 +35,16 @@ func NewInFile(fileName string) (Storage, error){
 	}, nil
 }
 
-func (s *InFile) Get(key string) (string, error) {
-	return s.cache.Get(key)
+func (s *InFile) Get(linkID string) (string, error) {
+	return s.cache.Get(linkID)
 }
 
-func (s *InFile) GetUserLinks(id string) (map[string]string, error){
-	return s.cache.GetUserLinks(id)
+func (s *InFile) GetUserLinks(userID string) (map[string]string, error){
+	return s.cache.GetUserLinks(userID)
 }
 
-func (s *InFile) Put(id string, key, value string) error {
-	if err := s.cache.Put(id, key, value); err != nil {
+func (s *InFile) Put(userID string, linkID, originURL string) error {
+	if err := s.cache.Put(userID, linkID, originURL); err != nil {
 		return err
 	}
 

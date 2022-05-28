@@ -16,40 +16,40 @@ func NewInMemory() Storage {
 	}
 }
 
-func (s *InMemory) Get(key string) (string, error){
+func (s *InMemory) Get(linkID string) (string, error){
 	s.RLock()
 	defer s.RUnlock()
 	for _, usrData := range s.m {
-		if v, ok := usrData.URLs[key]; ok {
+		if v, ok := usrData.URLs[linkID]; ok {
 			return v, nil
 		}
 	}
 	return "", ErrNotFound
 }
-func (s *InMemory) GetUserLinks(id string) (map[string]string, error){
+func (s *InMemory) GetUserLinks(userID string) (map[string]string, error){
 	s.RLock()
 	defer s.RUnlock()
-	if usrData, ok := s.m[id]; ok {
+	if usrData, ok := s.m[userID]; ok {
 		return usrData.URLs, nil
 	} else {
 		return nil, ErrNotFound
 	}
 }
 
-func (s *InMemory) Put(id, key, value string) error {
+func (s *InMemory) Put(userID, linkID, originURL string) error {
 	s.Lock()
 	defer s.Unlock()
-	if usrData, ok := s.m[id]; ok {
+	if usrData, ok := s.m[userID]; ok {
 		//User with uuid exists.
 		//Just append new item to URLs
-		if _, ok := usrData.URLs[key]; ok {
+		if _, ok := usrData.URLs[linkID]; ok {
 			return ErrAlreadyExists
 		}
-		usrData.URLs[key] = value
+		usrData.URLs[linkID] = originURL
 	} else {
-		usrData := NewUserData(id)
-		usrData.URLs[key] = value
-		s.m[id] = usrData
+		usrData := NewUserData(userID)
+		usrData.URLs[linkID] = originURL
+		s.m[userID] = usrData
 	}
 	return nil
 }

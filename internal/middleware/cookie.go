@@ -41,7 +41,8 @@ func (h *CookieHandler)CokieHandle(next http.Handler) http.Handler {
 			}
 		}
 
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), UserIDCtxName, cookieUserID)))
+		userIDCtxName := UserIDCtxName
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDCtxName, cookieUserID)))
 	})
 }
 //**********************************************************************************************************************
