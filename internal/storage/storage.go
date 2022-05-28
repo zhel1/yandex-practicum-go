@@ -21,6 +21,10 @@ func NewUserData(id string) UserData {
 	}
 }
 //**********************************************************************************************************************
+type Pinger interface {
+	PingDB() error
+}
+//**********************************************************************************************************************
 type Storage interface {
 	Get(key string) (string, error)
 	GetUserLinks(id string) (map[string]string, error)

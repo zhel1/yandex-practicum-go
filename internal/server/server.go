@@ -39,6 +39,7 @@ func (s *Server) StartServer() error {
 	r.Post("/api/shorten", URLHandler.AddLinkJSON())
 	r.Get("/api/user/urls", URLHandler.GetUserLinks())
 	r.Get("/{id}", URLHandler.GetLink())
+	r.Get("/ping", URLHandler.GetPing())
 
 	server := &http.Server {
 		Addr:    s.Config.Addr,

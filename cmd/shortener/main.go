@@ -15,7 +15,12 @@ func main() {
 	}
 
 	var strg storage.Storage
-	if cfg.FileStoragePath != "" {
+	if cfg.DatabaseDSN != "" {
+		strg, err = storage.NewInPSQL(cfg.DatabaseDSN)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if cfg.FileStoragePath != "" {
 		strg, err = storage.NewInFile(cfg.FileStoragePath)
 		if err != nil {
 			log.Fatal(err)

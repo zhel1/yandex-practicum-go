@@ -9,15 +9,7 @@ import (
 	"net/http"
 )
 
-const UserIDCtxName = 1
-
-var statusText = map[int]string{
-	UserIDCtxName:           "UserID",
-}
-
-func UserIDCtxNameText(code int) string {
-	return statusText[code]
-}
+const UserIDCtxName = "UserID"
 
 type CookieHandler struct {
 	cr *utils.Crypto
@@ -34,7 +26,7 @@ func NewCookieHandler(cr *utils.Crypto) (*CookieHandler, error) {
 
 func (h *CookieHandler)CokieHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userIDCookie, err := r.Cookie(UserIDCtxNameText(UserIDCtxName))
+		userIDCookie, err := r.Cookie(UserIDCtxName)
 
 		var cookieUserID string
 		if errors.Is(err, http.ErrNoCookie) { //no cookie
@@ -49,7 +41,7 @@ func (h *CookieHandler)CokieHandle(next http.Handler) http.Handler {
 			}
 		}
 
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), UserIDCtxNameText(UserIDCtxName), cookieUserID)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), UserIDCtxName, cookieUserID)))
 	})
 }
 //**********************************************************************************************************************
@@ -57,7 +49,7 @@ func (h *CookieHandler)CreateNewCookie(userID *string) *http.Cookie {
 	*userID = uuid.New().String()
 	token := h.cr.Encode(*userID)
 	cookie := &http.Cookie{
-		Name:  UserIDCtxNameText(UserIDCtxName),
+		Name: UserIDCtxName,
 		Value: token,
 		Path:  "/",
 	}
