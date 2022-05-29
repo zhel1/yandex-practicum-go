@@ -12,14 +12,10 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
-	"net/url"
-	"strings"
-
-	//"io"
-	//"io/ioutil"
-	//"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -290,6 +286,77 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 			resp, err := client.R().Get(ht.ts.URL + "/api/user/urls")
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantCode, resp.StatusCode())
+		})
+	}
+}
+
+func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
+	ht.router.Use(ht.cookieHandler.CokieHandle)
+	ht.router.Post("/api/batch", ht.urlHandler.AddLinkBatchJSON())
+	defer ht.ts.Close()
+
+	type want struct {
+		code        int
+		contentType string
+	}
+
+	tests := []struct {
+		name string
+		body string
+		want want
+	} {
+		{
+			name: "positive test #1",
+			body: " [{\"correlation_id\":\"1eb421e4-4405-4d36-b6bf-55c4e3a1268f\",\"original_url\":\"http://khawesxujm.biz/fdapyknrhiywl0\"},{\"correlation_id\":\"8100b303-5b7c-4c41-800e-7f76dca94d7d\",\"original_url\":\"http://jlth8bcthyp01q.ru/zkd2d\"}]",
+			want: want{
+				code:        http.StatusCreated,
+				contentType: "application/json; charset=utf-8",
+			},
+		},
+		{
+			name: "negative test #2",
+			body: "",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "",
+			},
+		},
+		{
+			name: "negative test #3",
+			body: "12312343214",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/api/batch")
+			require.NoError(t, err)
+			//defer resp.Body.Close()
+			assert.Equal(t, tt.want.code, resp.StatusCode())
+
+			if tt.want.code != http.StatusBadRequest {
+				var jsonResponse []BatchResponse
+
+				err := json.Unmarshal(resp.Body(), &jsonResponse)
+				require.NoError(t, err)
+
+				for _, jr := range jsonResponse {
+					_, err = url.ParseRequestURI(jr.ShortURL)
+					require.NoError(t, err)
+
+					//get only id
+					id := strings.Replace(jr.ShortURL, ht.cfg.BaseURL, "", -1)
+					_, err = ht.storage.Get(id)
+					require.NoError(t, err)
+				}
+
+				assert.Equal(t, tt.want.contentType, resp.RawResponse.Header.Get("Content-Type"))
+			}
 		})
 	}
 }
