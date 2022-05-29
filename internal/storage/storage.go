@@ -29,6 +29,6 @@ type Pinger interface {
 type Storage interface {
 	Get(key string) (string, error)
 	GetUserLinks(userID string) (map[string]string, error)
-	Put(userID, linkID, originURL string) error
+	Put(userID, shortURL, originURL string) error
 	Close() error
 }

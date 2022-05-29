@@ -2,8 +2,6 @@ package storage
 
 import (
 	"database/sql"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"log"
 )
@@ -36,9 +34,9 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 	}, nil
 }
 
-func (s *InPSQL) Get(linkID string) (string, error) {
-	originURL := new(string)
-	err := s.DB.QueryRow("SELECT origin_url FROM urls WHERE url_id = $1", linkID).Scan(&originURL)
+func (s *InPSQL) Get(shortURL string) (string, error) {
+	var originURL string
+	err := s.DB.QueryRow("SELECT origin_url FROM urls WHERE short_url = $1", shortURL).Scan(&originURL)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -48,40 +46,53 @@ func (s *InPSQL) Get(linkID string) (string, error) {
 			return "", err
 		}
 	}
-	return "", err
+	return originURL, err
 }
 
 func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error){
-	rows, err := s.DB.Query("SELECT url_id, origin_url FROM urls WHERE user_id = $1", userID)
-	defer rows.Close()
-
+	query := "SELECT short_url, origin_url FROM users_url RIGHT JOIN urls u on users_url.url_id=u.id WHERE user_id=$1;"
+	rows, err := s.DB.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	result := make(map[string]string)
-	var linkID string
+	var shortURL string
 	var originURL string
 	for rows.Next() {
-		if err = rows.Scan(&linkID, &originURL); err != nil {
+		if err = rows.Scan(&shortURL, &originURL); err != nil {
 			return nil, err
 		}
-		result[linkID] = originURL
+		result[shortURL] = originURL
 	}
 
 	if err = rows.Err(); err != nil {
 		log.Println(err)
 	}
+
 	return result, nil
 }
 
-func (s *InPSQL) Put(userID string, linkID, originURL string) error {
-	_, err := s.DB.Query("INSERT INTO urls (user_id, url_id, origin_url) VALUES ($1, $2, $3)", userID, linkID, originURL)
-	if err != nil {
-		if err, ok := err.(*pgconn.PgError); ok && err.Code == pgerrcode.UniqueViolation {
+func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
+	var id int  //serial id in urls table
+	query := `INSERT INTO urls (origin_url, short_url) VALUES ($1, $2) RETURNING id `
+	s.DB.QueryRow(query, originURL, shortURL).Scan(&id)
+	if id != 0 {
+		query = `INSERT INTO users_url (user_id, url_id) VALUES ($1, $2);`
+
+		if _, err := s.DB.Exec(query, userID, id); err != nil {
+			return err
+		}
+	} else {
+		querySelect := `SELECT id FROM urls WHERE origin_url = $1;`
+		s.DB.QueryRow(querySelect, originURL).Scan(&id)
+		query = `INSERT INTO users_url (user_id, url_id) VALUES ($1, $2) ;`
+
+		if _, err := s.DB.Exec(query, userID, id); err != nil {
+			log.Println(err)
 			return ErrAlreadyExists
 		}
-		return ErrExecutionPSQL
 	}
 	return nil
 }
@@ -97,12 +108,16 @@ func (s *InPSQL) PingDB() error {
 //**********************************************************************************************************************
 func (s *InPSQL) createTable() error {
 	query := `CREATE TABLE IF NOT EXISTS urls (
-		id bigserial not null,
-		user_id text not null,
-		origin_url text not null,
-		url_id text not null,
-		UNIQUE (user_id, origin_url)
-	);`
+		id serial primary key,
+		origin_url text not null unique,
+		short_url text not null 
+	);
+	CREATE TABLE IF NOT EXISTS users_url(
+	  user_id text not null ,
+	  url_id int not null  references urls(id),
+	  CONSTRAINT unique_url UNIQUE (user_id, url_id)
+	);
+	`
 	_, err := s.DB.Exec(query)
 	return err
 }

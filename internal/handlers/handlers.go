@@ -115,8 +115,8 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 
 func (h *URLHandler)GetLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		linkID := chi.URLParam(r, "id")
-		longLink, err := h.st.Get(linkID)
+		shortURL := chi.URLParam(r, "id")
+		longLink, err := h.st.Get(shortURL)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
