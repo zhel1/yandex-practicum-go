@@ -292,7 +292,7 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 
 func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
 	ht.router.Use(ht.cookieHandler.CokieHandle)
-	ht.router.Post("/api/batch", ht.urlHandler.AddLinkBatchJSON())
+	ht.router.Post("/api/shorten/batch", ht.urlHandler.AddLinkBatchJSON())
 	defer ht.ts.Close()
 
 	type want struct {
@@ -334,7 +334,7 @@ func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
 	for _, tt := range tests {
 		ht.T().Run(tt.name, func(t *testing.T) {
 			client := resty.New()
-			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/api/batch")
+			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/api/shorten/batch")
 			require.NoError(t, err)
 			//defer resp.Body.Close()
 			assert.Equal(t, tt.want.code, resp.StatusCode())
