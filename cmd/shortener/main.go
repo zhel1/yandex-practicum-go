@@ -20,13 +20,16 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println("Database is used")
 	} else if cfg.FileStoragePath != "" {
 		strg, err = storage.NewInFile(cfg.FileStoragePath)
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println("File is used")
 	} else {
 		strg = storage.NewInMemory()
+		log.Println("Memory is used")
 	}
 	defer strg.Close()
 

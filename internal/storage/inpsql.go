@@ -2,7 +2,8 @@ package storage
 
 import (
 	"database/sql"
-	_ "github.com/jackc/pgx/v4/stdlib"
+	//_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/lib/pq"
 	"log"
 )
 
@@ -11,7 +12,8 @@ type InPSQL struct {
 }
 
 func NewInPSQL(databaseDSN string) (Storage, error){
-	db, err := sql.Open("pgx", databaseDSN)
+	//db, err := sql.Open("pgx", databaseDSN)
+	db, err := sql.Open("postgres", databaseDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
