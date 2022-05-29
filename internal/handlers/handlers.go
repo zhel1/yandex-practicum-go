@@ -33,7 +33,9 @@ func shortenURL(st storage.Storage, context context.Context, baseURL, URL string
 	shortIDLink := utils.MD5(URL)[:8]
 
 	if err := st.Put(userIDCtx, shortIDLink, URL); err != nil {
-		return "", err
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			return baseURL + shortIDLink, err
+		}
 	}
 	return baseURL + shortIDLink, nil
 }
@@ -62,13 +64,18 @@ func (h *URLHandler)AddLink() http.HandlerFunc {
 		}
 
 		shortLink, err := shortenURL(h.st, r.Context(), h.config.BaseURL, string(longLinkBytes))
-		if err != nil {
+		if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
+		status := http.StatusCreated
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			status = http.StatusConflict
+		}
+
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(status)
 		fmt.Fprint(w, shortLink)
 	}
 }
@@ -91,7 +98,7 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 		}
 
 		shortLink, err := shortenURL(h.st, r.Context(), h.config.BaseURL, b.URL)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -108,8 +115,13 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 			return
 		}
 
+		status := http.StatusCreated
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			status = http.StatusConflict
+		}
+
 		w.Header().Set("content-type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(status)
 		fmt.Fprint(w, buf)
 	}
 }
