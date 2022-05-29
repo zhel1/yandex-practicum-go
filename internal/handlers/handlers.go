@@ -103,6 +103,11 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 			return
 		}
 
+		status := http.StatusCreated
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			status = http.StatusConflict
+		}
+
 		res := JSONResponsetData {
 			Result: shortLink,
 		}
@@ -113,11 +118,6 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 		if err = encoder.Encode(res); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-
-		status := http.StatusCreated
-		if errors.Is(err, storage.ErrAlreadyExists) {
-			status = http.StatusConflict
 		}
 
 		w.Header().Set("content-type", "application/json; charset=utf-8")
