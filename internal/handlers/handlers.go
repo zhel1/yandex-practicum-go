@@ -73,6 +73,7 @@ func (h *URLHandler)AddLink() http.HandlerFunc {
 	}
 }
 
+//TODO move into sepatate file
 type JSONRequestData struct {
 	URL string `json:"url"`
 }
@@ -112,6 +113,55 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 		fmt.Fprint(w, buf)
 	}
 }
+
+//TODO move into sepatate file
+type BatchRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+type BatchResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (h *URLHandler)AddLinkBatchJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var bReq []BatchRequest
+		if err := json.NewDecoder(r.Body).Decode(&bReq); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var bResArr []BatchResponse
+
+		//TODO Writing to the database using statements
+		for _, batch := range bReq {
+			var bRes BatchResponse
+			var err error
+			bRes.CorrelationID = batch.CorrelationID
+			bRes.ShortURL, err = shortenURL(h.st, r.Context(), h.config.BaseURL, batch.OriginalURL)
+
+			if errors.Is(err, storage.ErrAlreadyExists) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			bResArr = append(bResArr, bRes)
+		}
+
+		buf := bytes.NewBuffer([]byte{})
+		encoder := json.NewEncoder(buf)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(bResArr); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("content-type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, buf)
+	}
+}
+
 
 func (h *URLHandler)GetLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -37,6 +37,7 @@ func (s *Server) StartServer() error {
 	r.Use(cookieHandler.CokieHandle)
 	r.Post("/", URLHandler.AddLink())
 	r.Post("/api/shorten", URLHandler.AddLinkJSON())
+	r.Post("/api/batch", URLHandler.AddLinkBatchJSON())
 	r.Get("/api/user/urls", URLHandler.GetUserLinks())
 	r.Get("/{id}", URLHandler.GetLink())
 	r.Get("/ping", URLHandler.GetPing())

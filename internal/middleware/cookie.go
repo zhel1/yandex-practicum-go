@@ -9,8 +9,16 @@ import (
 	"net/http"
 )
 
-const UserIDCtxName = "UserID"
+type CookieConst string
 
+func (c CookieConst) String() string {
+	return string(c)
+}
+var (
+	UserIDCtxName CookieConst = "UserID"
+)
+
+//**********************************************************************************************************************
 type CookieHandler struct {
 	cr *utils.Crypto
 }
@@ -26,7 +34,7 @@ func NewCookieHandler(cr *utils.Crypto) (*CookieHandler, error) {
 
 func (h *CookieHandler)CokieHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userIDCookie, err := r.Cookie(UserIDCtxName)
+		userIDCookie, err := r.Cookie(UserIDCtxName.String())
 
 		var cookieUserID string
 		if errors.Is(err, http.ErrNoCookie) { //no cookie
@@ -50,7 +58,7 @@ func (h *CookieHandler)CreateNewCookie(userID *string) *http.Cookie {
 	*userID = uuid.New().String()
 	token := h.cr.Encode(*userID)
 	cookie := &http.Cookie{
-		Name: UserIDCtxName,
+		Name: UserIDCtxName.String(),
 		Value: token,
 		Path:  "/",
 	}

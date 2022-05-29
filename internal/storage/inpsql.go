@@ -22,8 +22,7 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		DB:  db,
 	}
 
-	err = inPSQL.DB.Ping()
-	if err != nil {
+	if err = inPSQL.DB.Ping(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -115,7 +114,7 @@ func (s *InPSQL) createTable() error {
 		short_url text not null 
 	);
 	CREATE TABLE IF NOT EXISTS users_url(
-	  user_id text not null ,
+	  user_id text not null,
 	  url_id int not null  references urls(id),
 	  CONSTRAINT unique_url UNIQUE (user_id, url_id)
 	);
