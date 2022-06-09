@@ -15,6 +15,7 @@ type InPSQL struct {
 	DB  *sql.DB
 	deleteQueue chan DeleteEntry
 	mu  sync.Mutex
+	done chan int
 }
 
 func NewInPSQL(databaseDSN string) (Storage, error){
@@ -29,6 +30,7 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 	inPSQL := InPSQL {
 		DB:  db,
 		deleteQueue: recordCh,
+		done: make(chan int),
 	}
 
 	if err = inPSQL.DB.Ping(); err != nil {
@@ -48,6 +50,7 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		}
 
 		err = g.Wait()
+		inPSQL.done <- 0
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -87,6 +90,11 @@ func (s *InPSQL) Get(shortURL string) (string, error) {
 			atLeastOneNotDeleted = true
 			break
 		}
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return "", err
 	}
 
 	if !atLeastOneNotDeleted {
@@ -146,6 +154,7 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 
 func (s *InPSQL) Close() error {
 	close(s.deleteQueue)
+	<- s.done
 	s.DB.Close()
 	return nil
 }

@@ -5,11 +5,11 @@ import (
 )
 
 var (
-	ErrNotFound      	= errors.New("not found")
-	ErrDeleted      	= errors.New("marked as deleted")
-	ErrAlreadyExists 	= errors.New("already exists")
-	ErrExecutionPSQL 	= errors.New("execution PSQL error")
-	StatementPSQLError	= errors.New("statement PSQL error")
+	ErrNotFound      = errors.New("not found")
+	ErrDeleted       = errors.New("marked as deleted")
+	ErrAlreadyExists = errors.New("already exists")
+	ErrExecutionPSQL = errors.New("execution PSQL error")
+	ErrStatementPSQL = errors.New("statement PSQL error")
 )
 //**********************************************************************************************************************
 type UserData struct {
