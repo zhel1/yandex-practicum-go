@@ -109,7 +109,7 @@ func (ht *HandlersTestSuite)TestGetLink() {
 }
 
 func (ht *HandlersTestSuite)TestAddLink() {
-	ht.router.Use(ht.cookieHandler.CokieHandle)
+	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/", ht.urlHandler.AddLink())
 	defer ht.ts.Close()
 
@@ -173,7 +173,7 @@ func (ht *HandlersTestSuite)TestAddLink() {
 }
 
 func (ht *HandlersTestSuite)TestAddLinkJSON() {
-	ht.router.Use(ht.cookieHandler.CokieHandle)
+	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/api/shorten", ht.urlHandler.AddLinkJSON())
 	defer ht.ts.Close()
 
@@ -246,7 +246,7 @@ func (ht *HandlersTestSuite)TestAddLinkJSON() {
 }
 
 func (ht *HandlersTestSuite)TestGetUserLinks() {
-	ht.router.Use(ht.cookieHandler.CokieHandle)
+	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Get("/api/user/urls", ht.urlHandler.GetUserLinks())
 
 	crypto, _ := utils.NewCrypto(ht.cfg.UserKey)
@@ -291,7 +291,7 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 }
 
 func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
-	ht.router.Use(ht.cookieHandler.CokieHandle)
+	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/api/shorten/batch", ht.urlHandler.AddLinkBatchJSON())
 	defer ht.ts.Close()
 

@@ -58,3 +58,8 @@ func (s *InFile) Close() error {
 	s.cache = nil
 	return s.file.Close()
 }
+
+// SendToQueue is a mock for PSQL DB batch concurrent deleter.
+func (s *InFile) Delete(shortURLs []string, userID string) error {
+	return nil
+}

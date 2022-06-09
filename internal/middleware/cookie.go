@@ -32,7 +32,7 @@ func NewCookieHandler(cr *utils.Crypto) (*CookieHandler, error) {
 	}, nil
 }
 
-func (h *CookieHandler)CokieHandle(next http.Handler) http.Handler {
+func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userIDCookie, err := r.Cookie(UserIDCtxName.String())
 

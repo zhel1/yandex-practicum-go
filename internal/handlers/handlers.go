@@ -80,7 +80,7 @@ func (h *URLHandler)AddLink() http.HandlerFunc {
 	}
 }
 
-//TODO move into sepatate file
+//TODO move into separate file
 type JSONRequestData struct {
 	URL string `json:"url"`
 }
@@ -126,7 +126,7 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 	}
 }
 
-//TODO move into sepatate file
+//TODO move into separate file
 type BatchRequest struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
@@ -181,7 +181,12 @@ func (h *URLHandler)GetLink() http.HandlerFunc {
 		longLink, err := h.st.Get(shortURL)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			switch err {
+			case storage.ErrDeleted:
+				http.Error(w, err.Error(), http.StatusGone)
+			default:
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
 		} else {
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)
@@ -247,5 +252,29 @@ func (h *URLHandler)GetPing() http.HandlerFunc {
 			}
 			w.WriteHeader(http.StatusOK)
 		}
+	}
+}
+
+func (h *URLHandler) DeleteUserLinksBatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var userIDCtx string
+		if id := r.Context().Value(middleware.UserIDCtxName); id != nil {
+			userIDCtx = id.(string)
+		}
+
+		if userIDCtx == "" {
+			http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+			return
+		}
+
+		deleteURLs := make([]string, 0)
+		if err := json.NewDecoder(r.Body).Decode(&deleteURLs); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// perform asynchronous deletion
+		h.st.Delete(deleteURLs, userIDCtx)
+		w.WriteHeader(http.StatusAccepted)
 	}
 }

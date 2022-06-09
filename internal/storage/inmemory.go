@@ -60,6 +60,11 @@ func (s *InMemory) Close() error {
 	s.m = nil
 	return nil
 }
+
+// SendToQueue is a mock for PSQL DB batch concurrent deleter.
+func (s *InMemory) Delete(shortURLs []string, userID string) error {
+	return nil
+}
 //**********************************************************************************************************************
 func (s *InMemory) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.m)

@@ -1,14 +1,20 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
+	"runtime"
+	"sync"
 	//_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/lib/pq"
+	"golang.org/x/sync/errgroup"
 	"log"
 )
 
 type InPSQL struct {
 	DB  *sql.DB
+	deleteQueue chan DeleteEntry
+	mu  sync.Mutex
 }
 
 func NewInPSQL(databaseDSN string) (Storage, error){
@@ -18,8 +24,11 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		log.Fatal(err)
 	}
 
+	recordCh := make(chan DeleteEntry)
+
 	inPSQL := InPSQL {
 		DB:  db,
+		deleteQueue: recordCh,
 	}
 
 	if err = inPSQL.DB.Ping(); err != nil {
@@ -30,14 +39,27 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		log.Fatal(err)
 	}
 
-	return &InPSQL {
-		DB: db,
-	}, nil
+	//TODO change background context for real one
+	go func() {
+		g, _ := errgroup.WithContext(context.Background())
+		for i := 0; i < runtime.NumCPU(); i++ {
+			w := &DeleteWorker{ID: i, st: &inPSQL, ctx: context.Background()}
+			g.Go(w.deleteAsyncInPSQL)
+		}
+
+		err = g.Wait()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return &inPSQL, nil
 }
 
 func (s *InPSQL) Get(shortURL string) (string, error) {
 	var originURL string
-	err := s.DB.QueryRow("SELECT origin_url FROM urls WHERE short_url = $1", shortURL).Scan(&originURL)
+	var id int
+	err := s.DB.QueryRow("SELECT id,origin_url FROM urls WHERE short_url = $1", shortURL).Scan(&id, &originURL)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -47,6 +69,30 @@ func (s *InPSQL) Get(shortURL string) (string, error) {
 			return "", err
 		}
 	}
+
+	rows, err := s.DB.Query("SELECT is_deleted FROM users_url WHERE url_id = $1", id)
+	if err != nil {
+		return "", err
+	}
+
+	atLeastOneNotDeleted := false
+	for rows.Next() {
+		var isDeleted bool
+		err = rows.Scan(&isDeleted)
+		if err != nil {
+			return "", err
+		}
+
+		if !isDeleted {
+			atLeastOneNotDeleted = true
+			break
+		}
+	}
+
+	if !atLeastOneNotDeleted {
+		return "", ErrDeleted
+	}
+
 	return originURL, err
 }
 
@@ -99,6 +145,7 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 }
 
 func (s *InPSQL) Close() error {
+	close(s.deleteQueue)
 	s.DB.Close()
 	return nil
 }
@@ -106,19 +153,63 @@ func (s *InPSQL) Close() error {
 func (s *InPSQL) PingDB() error {
 	return s.DB.Ping()
 }
+
+//FanIn pattern: requests from all users are being split and put in one queue
+func (s *InPSQL) Delete(shortURLs []string, userID string) error {
+	var perWorkerListURL []string
+	for i := 0; i < len(shortURLs); i++ {
+		perWorkerListURL = append(perWorkerListURL, shortURLs[i])
+		if len(perWorkerListURL) == 5 || i == len(shortURLs) - 1 {
+			perWorkerBatch := DeleteEntry{UserID: userID, SURLs: perWorkerListURL}
+			s.deleteQueue <- perWorkerBatch
+			perWorkerListURL = []string{}
+		}
+	}
+	return nil
+}
 //**********************************************************************************************************************
+// ************************************ WAITING FOR A COMMENT FROM MENTORS *********************************************
+//**********************************************************************************************************************
+//	There are two variant to store "is_deleted" flag:
+//			   1. To store it in "urls" table. In this situation two or more users can control one URL.
+//				  Problem: User can expect, that his URL can be deleted by another user. Not good. Against task.
+//
+//  current -> 2. To store it in "users_url" table. In this situation user can control only his copy of URL.
+//				  Problem: If user delete his URL, he can expect, that his short link will continue to work.
+//**********************************************************************************************************************
+
+// 1.
+//func (s *InPSQL) createTable() error {
+//	query := `CREATE TABLE IF NOT EXISTS urls (
+//		id serial primary key,
+//		origin_url text not null unique,
+//		short_url text not null,
+//	    is_deleted boolean not null default false
+//	);
+//	CREATE TABLE IF NOT EXISTS users_url (
+//	  user_id text not null,
+//	  url_id int not null references urls(id),
+//	  CONSTRAINT unique_url UNIQUE (user_id, url_id)
+//	);
+//	`
+//	_, err := s.DB.Exec(query)
+//	return err
+//}
+// 2.
 func (s *InPSQL) createTable() error {
 	query := `CREATE TABLE IF NOT EXISTS urls (
 		id serial primary key,
 		origin_url text not null unique,
-		short_url text not null 
+		short_url text not null
 	);
-	CREATE TABLE IF NOT EXISTS users_url(
+	CREATE TABLE IF NOT EXISTS users_url (
 	  user_id text not null,
-	  url_id int not null  references urls(id),
+	  url_id int not null references urls(id),
+	  is_deleted boolean not null default false,
 	  CONSTRAINT unique_url UNIQUE (user_id, url_id)
 	);
 	`
 	_, err := s.DB.Exec(query)
 	return err
 }
+

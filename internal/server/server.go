@@ -33,14 +33,15 @@ func (s *Server) StartServer() error {
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.GzipHandle)
-	r.Use(cookieHandler.CokieHandle)
+	r.Use(middleware.GzipHandler)
+	r.Use(cookieHandler.CookieHandler)
 	r.Post("/", URLHandler.AddLink())
 	r.Post("/api/shorten", URLHandler.AddLinkJSON())
 	r.Post("/api/shorten/batch", URLHandler.AddLinkBatchJSON())
 	r.Get("/api/user/urls", URLHandler.GetUserLinks())
 	r.Get("/{id}", URLHandler.GetLink())
 	r.Get("/ping", URLHandler.GetPing())
+	r.Delete("/api/user/urls", URLHandler.DeleteUserLinksBatch())
 
 	server := &http.Server {
 		Addr:    s.Config.Addr,
