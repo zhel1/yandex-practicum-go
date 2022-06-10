@@ -12,6 +12,7 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -183,11 +184,14 @@ func (h *URLHandler)GetLink() http.HandlerFunc {
 		if err != nil {
 			switch err {
 			case storage.ErrDeleted:
+				log.Println("GetLink... StatusGone ", shortURL)
 				http.Error(w, err.Error(), http.StatusGone)
 			default:
+				log.Println("GetLink... StatusBadRequest ", shortURL)
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			}
 		} else {
+			log.Println("GetLink... StatusTemporaryRedirect ", shortURL)
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
