@@ -104,7 +104,7 @@ func (s *InPSQL) Get(shortURL string) (string, error) {
 	return originURL, err
 }
 
-func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error){
+func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error) {
 	query := "SELECT short_url, origin_url FROM users_url RIGHT JOIN urls u on users_url.url_id=u.id WHERE user_id=$1;"
 	rows, err := s.DB.Query(query, userID)
 	if err != nil {

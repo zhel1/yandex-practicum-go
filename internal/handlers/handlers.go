@@ -12,7 +12,6 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -178,21 +177,17 @@ func (h *URLHandler)AddLinkBatchJSON() http.HandlerFunc {
 
 func (h *URLHandler)GetLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("GetLink... ")
 		shortURL := chi.URLParam(r, "id")
 		longLink, err := h.st.Get(shortURL)
 
 		if err != nil {
 			switch err {
 			case storage.ErrDeleted:
-				log.Println("GetLink... StatusGone")
 				http.Error(w, err.Error(), http.StatusGone)
 			default:
-				log.Println("GetLink... StatusBadRequest")
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			}
 		} else {
-			log.Println("GetLink... StatusTemporaryRedirect")
 			w.Header().Set("Location", longLink)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
