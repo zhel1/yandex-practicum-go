@@ -25,7 +25,7 @@ func (d *DeleteWorker) deleteAsyncInPSQL() error {
 	}
 
 	// prepare DELETE statement
-	deleteStmt, err := s.DB.PrepareContext(d.ctx, "UPDATE users_url SET is_deleted = true WHERE user_id = $1 AND url_id = ALL(SELECT id FROM urls WHERE short_url = ANY($2))")
+	deleteStmt, err := s.DB.PrepareContext(d.ctx, "UPDATE users_url SET is_deleted = true WHERE user_id = $1 AND url_id = ANY(SELECT id FROM urls WHERE short_url = ANY($2))")
 	if err != nil {
 		return err //err
 	}
