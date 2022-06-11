@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"time"
 	//_ "github.com/jackc/pgx/v4/stdlib"
-	_ "github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
 	"log"
 )
@@ -170,11 +169,7 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 		return err
 	}
 
-	err = addURLStmt.QueryRow(originURL, shortURL).Scan(&id)
-	if err != nil {
-		return err
-	}
-
+	addURLStmt.QueryRow(originURL, shortURL).Scan(&id)
 	if id != 0 {
 		if _, err := addUserStmt.Exec(userID, id); err != nil {
 			return err
