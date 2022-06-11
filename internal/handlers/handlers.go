@@ -278,8 +278,6 @@ func (h *URLHandler) DeleteUserLinksBatch() http.HandlerFunc {
 		}
 
 		// perform asynchronous deletion
-		fmt.Println("deleteURLs: ", deleteURLs)
-
 		h.st.Delete(deleteURLs, userIDCtx)
 		w.WriteHeader(http.StatusAccepted)
 	}

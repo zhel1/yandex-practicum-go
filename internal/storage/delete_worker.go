@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"github.com/lib/pq"
 	"log"
 )
 
@@ -15,7 +14,7 @@ type DeleteWorker struct {
 
 type DeleteEntry struct {
 	UserID string
-	SURLs  []string
+	SURL  string
 }
 
 func (d *DeleteWorker) deleteAsyncInPSQL() error {
@@ -24,36 +23,23 @@ func (d *DeleteWorker) deleteAsyncInPSQL() error {
 		return errors.New("storage is not PSQL")
 	}
 
-	// prepare DELETE statement
-	deleteStmt, err := s.DB.PrepareContext(d.ctx, "UPDATE users_url SET is_deleted = true WHERE user_id = $1 AND url_id = ANY(SELECT id FROM urls WHERE short_url = ANY($2))")
-	if err != nil {
-		return err //err
-	}
-	defer deleteStmt.Close()
-
-	// begin transaction
-	tx, err := s.DB.BeginTx(d.ctx, nil)
-	if err != nil {
-		return ErrExecutionPSQL //err
-	}
-	defer tx.Rollback()
-	txDeleteStmt := tx.StmtContext(d.ctx, deleteStmt)
-
 	// listen to the channel new values and process them until chanel is closed
-	for record := range s.deleteQueue {
-		s.mu.Lock()
-		_, err = txDeleteStmt.ExecContext(d.ctx, record.UserID, pq.Array(record.SURLs))
-		if err != nil {
-			s.mu.Unlock()
-			return ErrExecutionPSQL //err
+	for records := range s.deleteQueue {
+		uniqueMap := make(map[string][]string) //[user][]urls
+		for _, r := range records {
+			if _, exist := uniqueMap[r.UserID]; !exist {
+				uniqueMap[r.UserID] = []string{r.SURL}
+			} else {
+				uniqueMap[r.UserID] = append(uniqueMap[r.UserID], r.SURL)
+			}
 		}
-		log.Println("Worker ID ", d.ID, "Deleting URL ", record.SURLs)
-		err := tx.Commit()
-		if err != nil {
-			s.mu.Unlock()
-			return ErrExecutionPSQL
+		for userID, sURLs := range uniqueMap {
+			err := s.DeleteBatch(sURLs, userID)
+			if err != nil {
+				log.Println("DeleteBatch ERROR: ", err)
+				return err
+			}
 		}
-		s.mu.Unlock()
 	}
 	return nil
 }

@@ -3,8 +3,10 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"github.com/lib/pq"
 	"runtime"
-	"sync"
+	"time"
+
 	//_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
@@ -13,8 +15,8 @@ import (
 
 type InPSQL struct {
 	DB  *sql.DB
-	deleteQueue chan DeleteEntry
-	mu  sync.Mutex
+	deleteBuf chan DeleteEntry //collect url until buff is full
+	deleteQueue chan []DeleteEntry
 	done chan int
 }
 
@@ -25,11 +27,10 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		log.Fatal(err)
 	}
 
-	recordCh := make(chan DeleteEntry)
-
 	inPSQL := InPSQL {
 		DB:  db,
-		deleteQueue: recordCh,
+		deleteBuf: make(chan DeleteEntry),
+		deleteQueue: make(chan []DeleteEntry),
 		done: make(chan int),
 	}
 
@@ -41,7 +42,36 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		log.Fatal(err)
 	}
 
-	//TODO change background context for real one
+	go func() {
+		expireTime := 5 * time.Second
+		bufferSize := 5
+
+		t := time.NewTicker(expireTime)
+		parts := make([]DeleteEntry,0,bufferSize)
+
+		for {
+			select {
+			case <- t.C:
+				if len(parts) > 0 {
+					log.Println("Deleted URLs due to timeout")
+					inPSQL.deleteQueue <- parts
+					parts = make([]DeleteEntry,0,bufferSize)
+				}
+			case part, ok := <- inPSQL.deleteBuf:
+				if !ok { // if chanel was closed
+					return
+				}
+				parts = append(parts, part)
+				if len(parts) >= bufferSize {
+					log.Println("Deleted URLs due to exceeding capacity")
+					inPSQL.deleteQueue <- parts
+					parts = make([]DeleteEntry,0,bufferSize)
+				}
+			}
+		}
+	}()
+
+	//maybe there in no sense in several go-routines, because they will not be able to write in one DB
 	go func() {
 		g, _ := errgroup.WithContext(context.Background())
 		for i := 0; i < runtime.NumCPU(); i++ {
@@ -153,7 +183,7 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 }
 
 func (s *InPSQL) Close() error {
-	close(s.deleteQueue)
+	close(s.deleteBuf)
 	<- s.done
 	s.DB.Close()
 	return nil
@@ -164,11 +194,13 @@ func (s *InPSQL) PingDB() error {
 }
 
 //FanIn pattern: requests from all users are being split and put in one queue
+/*
 func (s *InPSQL) Delete(shortURLs []string, userID string) error {
 	var perWorkerListURL []string
 	for i := 0; i < len(shortURLs); i++ {
 		perWorkerListURL = append(perWorkerListURL, shortURLs[i])
 		if len(perWorkerListURL) == 5 || i == len(shortURLs) - 1 {
+			fmt.Println("sent to queue: ", perWorkerListURL)
 			perWorkerBatch := DeleteEntry{UserID: userID, SURLs: perWorkerListURL}
 			s.deleteQueue <- perWorkerBatch
 			perWorkerListURL = []string{}
@@ -176,6 +208,41 @@ func (s *InPSQL) Delete(shortURLs []string, userID string) error {
 	}
 	return nil
 }
+*/
+//FanIn pattern: requests from all users are being put in one queue
+func (s *InPSQL) Delete(shortURLs []string, userID string) error {
+	for _, url := range shortURLs {
+		s.deleteBuf <- DeleteEntry{UserID:  userID, SURL: url}
+	}
+	return nil
+}
+
+func (s *InPSQL) DeleteBatch(shortURLs []string, userID string) error {
+	deleteStmt, err := s.DB.Prepare("UPDATE users_url SET is_deleted = true WHERE user_id = $1 AND url_id = ANY(SELECT id FROM urls WHERE short_url = ANY($2));")
+	if err != nil {
+		return err //err
+	}
+	defer deleteStmt.Close()
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return ErrExecutionPSQL //err
+	}
+	defer tx.Rollback()
+
+	txDeleteStmt := tx.Stmt(deleteStmt)
+	_, err = txDeleteStmt.Exec(userID, pq.Array(shortURLs))
+	if err != nil {
+		return ErrExecutionPSQL //err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return ErrExecutionPSQL
+	}
+	return nil
+}
+
 //**********************************************************************************************************************
 // ************************************ WAITING FOR A COMMENT FROM MENTORS *********************************************
 //**********************************************************************************************************************
