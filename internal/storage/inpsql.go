@@ -175,12 +175,12 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 			return err
 		}
 	} else {
-		getIdStmt, err := s.DB.Prepare(`SELECT id FROM urls WHERE origin_url = $1;`)
+		getIDStmt, err := s.DB.Prepare(`SELECT id FROM urls WHERE origin_url = $1;`)
 		if err != nil {
 			return err
 		}
 
-		err = getIdStmt.QueryRow(originURL).Scan(&id)
+		err = getIDStmt.QueryRow(originURL).Scan(&id)
 		if err != nil {
 			return err
 		}
