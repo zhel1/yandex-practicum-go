@@ -160,21 +160,37 @@ func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error) {
 
 func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 	var id int  //serial id in urls table
-	query := `INSERT INTO urls (origin_url, short_url) VALUES ($1, $2) RETURNING id `
-	s.DB.QueryRow(query, originURL, shortURL).Scan(&id)
-	if id != 0 {
-		query = `INSERT INTO users_url (user_id, url_id) VALUES ($1, $2);`
+	addURLStmt, err := s.DB.Prepare(`INSERT INTO urls (origin_url, short_url) VALUES ($1, $2) RETURNING id`)
+	if err != nil {
+		return err
+	}
 
-		if _, err := s.DB.Exec(query, userID, id); err != nil {
+	addUserStmt, err := s.DB.Prepare(`INSERT INTO users_url (user_id, url_id) VALUES ($1, $2);`)
+	if err != nil {
+		return err
+	}
+
+	err = addURLStmt.QueryRow(originURL, shortURL).Scan(&id)
+	if err != nil {
+		return err
+	}
+
+	if id != 0 {
+		if _, err := addUserStmt.Exec(userID, id); err != nil {
 			return err
 		}
 	} else {
-		querySelect := `SELECT id FROM urls WHERE origin_url = $1;`
-		s.DB.QueryRow(querySelect, originURL).Scan(&id)
-		query = `INSERT INTO users_url (user_id, url_id) VALUES ($1, $2) ;`
+		getIdStmt, err := s.DB.Prepare(`SELECT id FROM urls WHERE origin_url = $1;`)
+		if err != nil {
+			return err
+		}
 
-		if _, err := s.DB.Exec(query, userID, id); err != nil {
-			log.Println(err)
+		err = getIdStmt.QueryRow(originURL).Scan(&id)
+		if err != nil {
+			return err
+		}
+
+		if _, err := addUserStmt.Exec(userID, id); err != nil {
 			return ErrAlreadyExists
 		}
 	}
