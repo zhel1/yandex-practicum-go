@@ -6,7 +6,6 @@ import (
 	"github.com/lib/pq"
 	"runtime"
 	"time"
-
 	//_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
@@ -184,6 +183,7 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 
 func (s *InPSQL) Close() error {
 	close(s.deleteBuf)
+	close(s.deleteQueue)
 	<- s.done
 	s.DB.Close()
 	return nil
@@ -193,22 +193,6 @@ func (s *InPSQL) PingDB() error {
 	return s.DB.Ping()
 }
 
-//FanIn pattern: requests from all users are being split and put in one queue
-/*
-func (s *InPSQL) Delete(shortURLs []string, userID string) error {
-	var perWorkerListURL []string
-	for i := 0; i < len(shortURLs); i++ {
-		perWorkerListURL = append(perWorkerListURL, shortURLs[i])
-		if len(perWorkerListURL) == 5 || i == len(shortURLs) - 1 {
-			fmt.Println("sent to queue: ", perWorkerListURL)
-			perWorkerBatch := DeleteEntry{UserID: userID, SURLs: perWorkerListURL}
-			s.deleteQueue <- perWorkerBatch
-			perWorkerListURL = []string{}
-		}
-	}
-	return nil
-}
-*/
 //FanIn pattern: requests from all users are being put in one queue
 func (s *InPSQL) Delete(shortURLs []string, userID string) error {
 	for _, url := range shortURLs {
