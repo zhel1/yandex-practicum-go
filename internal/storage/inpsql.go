@@ -105,6 +105,7 @@ func (s *InPSQL) Get(shortURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer rows.Close()
 
 	atLeastOneNotDeleted := false
 	for rows.Next() {
