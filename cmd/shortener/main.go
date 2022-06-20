@@ -15,20 +15,32 @@ func main() {
 	}
 
 	var strg storage.Storage
-	if cfg.FileStoragePath != "" {
+	if cfg.DatabaseDSN != "" {
+		strg, err = storage.NewInPSQL(cfg.DatabaseDSN)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Database is used")
+	} else if cfg.FileStoragePath != "" {
 		strg, err = storage.NewInFile(cfg.FileStoragePath)
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println("File is used")
 	} else {
 		strg = storage.NewInMemory()
+		log.Println("Memory is used")
 	}
 	defer strg.Close()
 
 	s := server.Server {
-		Addr:    cfg.Addr,
-		BaseURL: cfg.BaseURL + "/",
+		Config: &cfg,
 		Storage: strg,
 	}
-	s.StartServer()
+	err = s.StartServer()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
+
+

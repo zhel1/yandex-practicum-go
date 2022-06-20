@@ -2,12 +2,16 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/zhel1/yandex-practicum-go/internal/config"
+	"github.com/zhel1/yandex-practicum-go/internal/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
-	//"io"
-	"io/ioutil"
-	//"log"
+	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,37 +19,43 @@ import (
 	"testing"
 )
 
-func testRequest(t *testing.T, ts *httptest.Server, method, path string, body string) (*http.Response, string) {
-	req, err := http.NewRequest(method, ts.URL + path, strings.NewReader(body))
-	require.NoError(t, err)
-
-	//disable redirect
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-
-	respBody, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	defer resp.Body.Close()
-
-	return resp, string(respBody)
+type HandlersTestSuite struct {
+	suite.Suite
+	storage          storage.Storage
+	cfg              *config.Config
+	urlHandler       *URLHandler
+	cookieHandler    *middleware.CookieHandler
+	cookieEncriptor  *utils.Crypto
+	router           *chi.Mux
+	ts               *httptest.Server
 }
 
-func TestGetLink(t *testing.T) {
-	st := storage.NewInMemory()
-	st.Put("1234567", "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6")
-	st.Put("1234568", "https://yandex.ru/news/")
+func (ht *HandlersTestSuite) SetupTest() {
+	cfg := config.Config{}
+	cfg.Addr = "localhost:8080"
+	cfg.BaseURL = "http://localhost:8080/"
+	cfg.FileStoragePath = ""
+	cfg.UserKey = "PaSsW0rD"
 
-	baseURL := "http://localhost:8080/"
-	r := NewRouter(st, baseURL)
-	ts := httptest.NewServer(r)
-	defer ts.Close()
+	ht.cfg = &cfg
+	ht.cookieEncriptor, _ = utils.NewCrypto(cfg.UserKey)
+	ht.storage = storage.NewInMemory()
+	ht.urlHandler, _ = InitURLHandler(ht.storage, &cfg)
+	ht.cookieHandler, _ = middleware.NewCookieHandler(ht.cookieEncriptor)
+	ht.router = chi.NewRouter()
+	ht.ts = httptest.NewServer(ht.router)
+}
+
+func TestHandlersTestSuite(t *testing.T) {
+	suite.Run(t, new(HandlersTestSuite))
+}
+
+func (ht *HandlersTestSuite)TestGetLink() {
+	ht.router.Get("/{id}", ht.urlHandler.GetLink())
+	userID := uuid.New().String()
+	ht.storage.Put(userID,"1234567", "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6")
+	ht.storage.Put(userID,"1234568", "https://yandex.ru/news/")
+	defer ht.ts.Close()
 
 	tests := []struct {
 		name     string
@@ -75,26 +85,33 @@ func TestGetLink(t *testing.T) {
 		{
 			name:     "Negative test #4. Empty path (redirection test).",
 			value:    "",
-			wantCode: http.StatusMethodNotAllowed,
+			wantCode: http.StatusNotFound,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, _ := testRequest(t, ts, http.MethodGet, "/" + tt.value, "")
-			defer resp.Body.Close()
-			assert.Equal(t, tt.wantCode, resp.StatusCode)
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			client.SetRedirectPolicy(resty.RedirectPolicyFunc(func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}))
+			resp, err := client.R().Get(ht.ts.URL + "/" + tt.value)
+			require.NoError(t, err)
 
-			if resp.StatusCode == http.StatusTemporaryRedirect {
-				_, err := url.ParseRequestURI(resp.Header.Get("Location"))
+			assert.Equal(t, tt.wantCode, resp.StatusCode())
+
+			if resp.StatusCode() == http.StatusTemporaryRedirect {
+				_, err := url.ParseRequestURI(resp.RawResponse.Header.Get("Location"))
 				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-func TestAddLink(t *testing.T) {
-	baseURL := "http://localhost:8080/"
+func (ht *HandlersTestSuite)TestAddLink() {
+	ht.router.Use(ht.cookieHandler.CookieHandler)
+	ht.router.Post("/", ht.urlHandler.AddLink())
+	defer ht.ts.Close()
 
 	type want struct {
 		code        int
@@ -133,32 +150,32 @@ func TestAddLink(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			st := storage.NewInMemory()
-			ts := httptest.NewServer(NewRouter(st, baseURL))
-			defer ts.Close()
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/")
+			require.NoError(t, err)
 
-			resp, body := testRequest(t, ts, http.MethodPost, "/", tt.body)
-			defer resp.Body.Close()
-			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.code, resp.StatusCode())
 
 			if tt.want.code != http.StatusBadRequest {
-				_, err := url.ParseRequestURI(body)
+				_, err := url.ParseRequestURI(string(resp.Body()))
 				require.NoError(t, err)
 
 				//get only id
-				id := strings.Replace(body, baseURL, "", -1)
-				_, err = st.Get(id)
+				id := strings.Replace(string(resp.Body()), ht.cfg.BaseURL, "", -1)
+				_, err = ht.storage.Get(id)
 				require.NoError(t, err)
 
-				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+				assert.Equal(t, tt.want.contentType, resp.RawResponse.Header.Get("Content-Type"))
 			}
 		})
 	}
 }
 
-func TestAddLinkJSON(t *testing.T) {
-	baseURL := "http://localhost:8080/"
+func (ht *HandlersTestSuite)TestAddLinkJSON() {
+	ht.router.Use(ht.cookieHandler.CookieHandler)
+	ht.router.Post("/api/shorten", ht.urlHandler.AddLinkJSON())
+	defer ht.ts.Close()
 
 	type want struct {
 		code        int
@@ -197,14 +214,12 @@ func TestAddLinkJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			st := storage.NewInMemory()
-			ts := httptest.NewServer(NewRouter(st, baseURL))
-			defer ts.Close()
-
-			resp, body := testRequest(t, ts, http.MethodPost, "/api/shorten", tt.body)
-			defer resp.Body.Close()
-			assert.Equal(t, tt.want.code, resp.StatusCode)
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/api/shorten")
+			require.NoError(t, err)
+			//defer resp.Body.Close()
+			assert.Equal(t, tt.want.code, resp.StatusCode())
 
 			if tt.want.code != http.StatusBadRequest {
 				res := struct {
@@ -213,18 +228,134 @@ func TestAddLinkJSON(t *testing.T) {
 					Result: "",
 				}
 
-				err := json.Unmarshal([]byte(body), &res)
+				err := json.Unmarshal(resp.Body(), &res)
 				require.NoError(t, err)
 
 				_, err = url.ParseRequestURI(res.Result)
 				require.NoError(t, err)
 
 				//get only id
-				id := strings.Replace(res.Result, baseURL, "", -1)
-				_, err = st.Get(id)
+				id := strings.Replace(res.Result, ht.cfg.BaseURL, "", -1)
+				_, err = ht.storage.Get(id)
 				require.NoError(t, err)
 
-				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+				assert.Equal(t, tt.want.contentType, resp.RawResponse.Header.Get("Content-Type"))
+			}
+		})
+	}
+}
+
+func (ht *HandlersTestSuite)TestGetUserLinks() {
+	ht.router.Use(ht.cookieHandler.CookieHandler)
+	ht.router.Get("/api/user/urls", ht.urlHandler.GetUserLinks())
+
+	crypto, _ := utils.NewCrypto(ht.cfg.UserKey)
+	userID := crypto.Encode(uuid.New().String())
+	idLink := "1234568"
+	origLink := "https://yandex.ru/news/"
+
+	defer ht.ts.Close()
+
+	tests := []struct {
+		name     string
+		value    string
+		stData 	 bool
+		wantCode int
+	}{
+		{
+			name:     "Negative test #1. No user in database.",
+			stData:  false,
+			wantCode: http.StatusNoContent,
+		},
+		{
+			name:     "Positive test #2",
+			stData: true,
+			wantCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		if tt.stData { ht.storage.Put(userID, idLink, origLink) }
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			client.SetCookie(&http.Cookie{
+				Name: middleware.UserIDCtxName.String(),
+				Value: crypto.Encode(userID),
+				Path:  "/",
+			})
+			resp, err := client.R().Get(ht.ts.URL + "/api/user/urls")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantCode, resp.StatusCode())
+		})
+	}
+}
+
+func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
+	ht.router.Use(ht.cookieHandler.CookieHandler)
+	ht.router.Post("/api/shorten/batch", ht.urlHandler.AddLinkBatchJSON())
+	defer ht.ts.Close()
+
+	type want struct {
+		code        int
+		contentType string
+	}
+
+	tests := []struct {
+		name string
+		body string
+		want want
+	} {
+		{
+			name: "positive test #1",
+			body: " [{\"correlation_id\":\"1eb421e4-4405-4d36-b6bf-55c4e3a1268f\",\"original_url\":\"http://khawesxujm.biz/fdapyknrhiywl0\"},{\"correlation_id\":\"8100b303-5b7c-4c41-800e-7f76dca94d7d\",\"original_url\":\"http://jlth8bcthyp01q.ru/zkd2d\"}]",
+			want: want{
+				code:        http.StatusCreated,
+				contentType: "application/json; charset=utf-8",
+			},
+		},
+		{
+			name: "negative test #2",
+			body: "",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "",
+			},
+		},
+		{
+			name: "negative test #3",
+			body: "12312343214",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ht.T().Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			resp, err := client.R().SetBody(tt.body).Post(ht.ts.URL + "/api/shorten/batch")
+			require.NoError(t, err)
+			//defer resp.Body.Close()
+			assert.Equal(t, tt.want.code, resp.StatusCode())
+
+			if tt.want.code != http.StatusBadRequest {
+				var jsonResponse []BatchResponse
+
+				err := json.Unmarshal(resp.Body(), &jsonResponse)
+				require.NoError(t, err)
+
+				for _, jr := range jsonResponse {
+					_, err = url.ParseRequestURI(jr.ShortURL)
+					require.NoError(t, err)
+
+					//get only id
+					id := strings.Replace(jr.ShortURL, ht.cfg.BaseURL, "", -1)
+					_, err = ht.storage.Get(id)
+					require.NoError(t, err)
+				}
+
+				assert.Equal(t, tt.want.contentType, resp.RawResponse.Header.Get("Content-Type"))
 			}
 		})
 	}
