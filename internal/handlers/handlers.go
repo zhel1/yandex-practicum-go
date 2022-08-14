@@ -239,7 +239,7 @@ func (h *URLHandler) GetUserLinks() http.HandlerFunc {
 			return
 		}
 
-		responseURLs := make([]ResponseFullURL, len(links))
+		responseURLs := make([]ResponseFullURL, 0, len(links))
 		for short, orign := range links {
 			responseURL := ResponseFullURL{
 				OriginalURL: orign,
