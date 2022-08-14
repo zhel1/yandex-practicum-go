@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/zhel1/yandex-practicum-go/internal/config"
 	"github.com/zhel1/yandex-practicum-go/internal/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
-	"io"
-	"log"
-	"net/http"
-	"net/url"
 )
 
 func shortenURL(st storage.Storage, context context.Context, baseURL, URL string) (string, error) {
@@ -40,12 +41,16 @@ func shortenURL(st storage.Storage, context context.Context, baseURL, URL string
 	}
 	return baseURL + shortIDLink, nil
 }
+
 //**********************************************************************************************************************
+
+//Handler struct
 type URLHandler struct {
-	st storage.Storage
+	st     storage.Storage
 	config *config.Config
 }
 
+//InitURLHandler initializes Handler struct
 func InitURLHandler(storage storage.Storage, config *config.Config) (*URLHandler, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("nil Storage was passed to service URL Handler initializer")
@@ -56,7 +61,8 @@ func InitURLHandler(storage storage.Storage, config *config.Config) (*URLHandler
 	return &URLHandler{st: storage, config: config}, nil
 }
 
-func (h *URLHandler)AddLink() http.HandlerFunc {
+//AddLink accepts a URL string in the request body for shortening
+func (h *URLHandler) AddLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		longLinkBytes, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -82,17 +88,21 @@ func (h *URLHandler)AddLink() http.HandlerFunc {
 }
 
 //TODO move into separate file
+
+//JSONRequestData struct
 type JSONRequestData struct {
 	URL string `json:"url"`
 }
 
+//JSONResponsetData struct
 type JSONResponsetData struct {
 	Result string `json:"result"`
 }
 
-func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
+//AddLinkJSON accepts a JSON object in the request body and returning a JSON objec in response
+func (h *URLHandler) AddLinkJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		b := JSONRequestData {}
+		b := JSONRequestData{}
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -109,7 +119,7 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 			status = http.StatusConflict
 		}
 
-		res := JSONResponsetData {
+		res := JSONResponsetData{
 			Result: shortLink,
 		}
 
@@ -128,28 +138,34 @@ func (h *URLHandler)AddLinkJSON() http.HandlerFunc {
 }
 
 //TODO move into separate file
+
+//JSONResponsetData struct
 type BatchRequest struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
 }
+
+//BatchResponse struct
 type BatchResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
 }
 
-func (h *URLHandler)AddLinkBatchJSON() http.HandlerFunc {
+//PostURLsBATCH accepts in the request body a set of URLs for shortening in the format
+func (h *URLHandler) AddLinkBatchJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var bReq []BatchRequest
+
+		bReq := make([]BatchRequest, 0, 20000)
 		if err := json.NewDecoder(r.Body).Decode(&bReq); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var bResArr []BatchResponse
+		bResArr := make([]BatchResponse, 0, 20000)
 
 		//TODO Writing to the database using statements
 		for _, batch := range bReq {
-			var bRes BatchResponse
+			bRes := BatchResponse{}
 			var err error
 			bRes.CorrelationID = batch.CorrelationID
 			bRes.ShortURL, err = shortenURL(h.st, r.Context(), h.config.BaseURL, batch.OriginalURL)
@@ -175,8 +191,8 @@ func (h *URLHandler)AddLinkBatchJSON() http.HandlerFunc {
 	}
 }
 
-
-func (h *URLHandler)GetLink() http.HandlerFunc {
+//GetLink accepts the identifier of the short URL as a URL parameter and returns a response
+func (h *URLHandler) GetLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortURL := chi.URLParam(r, "id")
 		longLink, err := h.st.Get(shortURL)
@@ -200,13 +216,14 @@ func (h *URLHandler)GetLink() http.HandlerFunc {
 
 // ResponseFullURL is used in GetUserLinks
 type ResponseFullURL struct {
-	OriginalURL  string `json:"original_url"`
-	ShortURL string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+	ShortURL    string `json:"short_url"`
 }
 
-func (h *URLHandler)GetUserLinks() http.HandlerFunc {
+//GetUserLinks returns to the user all links ever saved by him
+func (h *URLHandler) GetUserLinks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var userIDCtx string
+		userIDCtx := ""
 		if id := r.Context().Value(middleware.UserIDCtxName); id != nil {
 			userIDCtx = id.(string)
 		}
@@ -217,16 +234,16 @@ func (h *URLHandler)GetUserLinks() http.HandlerFunc {
 		}
 
 		links, err := h.st.GetUserLinks(userIDCtx)
-		if err != nil || len(links) == 0  {
+		if err != nil || len(links) == 0 {
 			http.Error(w, err.Error(), http.StatusNoContent)
 			return
 		}
 
-		var responseURLs []ResponseFullURL
+		responseURLs := make([]ResponseFullURL, len(links))
 		for short, orign := range links {
 			responseURL := ResponseFullURL{
 				OriginalURL: orign,
-				ShortURL: h.config.BaseURL + short,
+				ShortURL:    h.config.BaseURL + short,
 			}
 			responseURLs = append(responseURLs, responseURL)
 		}
@@ -246,7 +263,8 @@ func (h *URLHandler)GetUserLinks() http.HandlerFunc {
 	}
 }
 
-func (h *URLHandler)GetPing() http.HandlerFunc {
+//GetPing checks the connection to the database
+func (h *URLHandler) GetPing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pinger, valid := h.st.(storage.Pinger)
 		if valid {
@@ -259,6 +277,7 @@ func (h *URLHandler)GetPing() http.HandlerFunc {
 	}
 }
 
+//DeleteUserLinksBatch accepts a list of abbreviated URL IDs to delete
 func (h *URLHandler) DeleteUserLinksBatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var userIDCtx string

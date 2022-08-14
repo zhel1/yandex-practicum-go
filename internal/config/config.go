@@ -1,27 +1,31 @@
+// Package config provides two ways to configure app
 package config
 
 import (
 	"flag"
-	"github.com/caarlos0/env/v6"
 	"strings"
+
+	"github.com/caarlos0/env/v6"
 )
 
+//Config contains variables to configure app
 type Config struct {
-	Addr			string		`env:"SERVER_ADDRESS"`
-	BaseURL			string		`env:"BASE_URL"`
-	FileStoragePath	string		`env:"FILE_STORAGE_PATH"`
-	UserKey			string		`env:"USER_KEY" envDefault:"PaSsW0rD"`
-	DatabaseDSN 	string		`env:"DATABASE_DSN"`
+	Addr            string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	UserKey         string `env:"USER_KEY" envDefault:"PaSsW0rD"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
-// DatabaseDSN scheme: "postgres://username:password@localhost:5432/database_name"
+//DatabaseDSN scheme: "postgres://username:password@localhost:5432/database_name?sslmode=disable"
 
-func (c* Config)Parse() error {
+//Parse parses command line parameters or sets defaults (if parameters were not set) and then overrides them by environment variables
+func (c *Config) Parse() error {
 	flag.StringVar(&c.Addr, "a", "localhost:8080", "Host to listen on")
-	flag.StringVar(&c.BaseURL,"b", "http://localhost:8080/", "Base address of the resulting shortened URL")
-	flag.StringVar(&c.FileStoragePath,"f", "", "Path to the file with shortened URLs")
-	flag.StringVar(&c.UserKey,"p", "", "UserKey for encryption cookie")
-	flag.StringVar(&c.DatabaseDSN,"d", "", "The line with the address to connect to the database")
+	flag.StringVar(&c.BaseURL, "b", "http://localhost:8080/", "Base address of the resulting shortened URL")
+	flag.StringVar(&c.FileStoragePath, "f", "", "Path to the file with shortened URLs")
+	flag.StringVar(&c.UserKey, "p", "", "UserKey for encryption cookie")
+	flag.StringVar(&c.DatabaseDSN, "d", "", "The line with the address to connect to the database")
 	flag.Parse()
 
 	//settings redefinition, if evn variables is used

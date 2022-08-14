@@ -1,18 +1,20 @@
 package server
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/zhel1/yandex-practicum-go/internal/config"
 	"github.com/zhel1/yandex-practicum-go/internal/handlers"
 	"github.com/zhel1/yandex-practicum-go/internal/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
-	"log"
-	"net/http"
 )
 
+//Server struct
 type Server struct {
-	Config *config.Config
+	Config  *config.Config
 	Storage storage.Storage
 }
 
@@ -43,7 +45,7 @@ func (s *Server) StartServer() error {
 	r.Get("/ping", URLHandler.GetPing())
 	r.Delete("/api/user/urls", URLHandler.DeleteUserLinksBatch())
 
-	server := &http.Server {
+	server := &http.Server{
 		Addr:    s.Config.Addr,
 		Handler: r,
 	}
