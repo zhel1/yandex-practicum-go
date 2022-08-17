@@ -13,22 +13,22 @@ type Crypto struct {
 	nonce  []byte
 }
 
-func NewCrypto(keyStr string) (*Crypto, error) {
+func NewCrypto(keyStr string) *Crypto {
 	key := sha256.Sum256([]byte(keyStr))
 	aesblock, err := aes.NewCipher(key[:])
 	if err != nil {
-		return nil, err
+		panic("failed to create Crypto: " + err.Error())
 	}
 
 	aesgcm, err := cipher.NewGCM(aesblock)
 	if err != nil {
-		return nil, err
+		panic("failed to create Crypto: " + err.Error())
 	}
 	nonce := key[len(key)-aesgcm.NonceSize():]
 	return &Crypto{
 		aesgcm: aesgcm,
 		nonce:  nonce,
-	}, nil
+	}
 }
 
 func (s *Crypto) Encode(data string) string {

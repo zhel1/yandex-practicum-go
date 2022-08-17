@@ -4,39 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zhel1/yandex-practicum-go/internal/app/dto"
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
+	"github.com/zhel1/yandex-practicum-go/internal/app/utils"
 )
 
-type CookieConst string
-
-func (c CookieConst) String() string {
-	return string(c)
-}
-
-var (
-	UserIDCtxName CookieConst = "UserID"
-)
-
-//**********************************************************************************************************************
 type CookieHandler struct {
 	cr *utils.Crypto
 }
 
-func NewCookieHandler(cr *utils.Crypto) (*CookieHandler, error) {
+func NewCookieHandler(cr *utils.Crypto) *CookieHandler {
 	if cr == nil {
-		return nil, fmt.Errorf("nil Storage was passed to service URL Handler initializer")
+		panic(fmt.Errorf("nil Storage was passed to service URL Handler initializer"))
 	}
+
 	return &CookieHandler{
 		cr: cr,
-	}, nil
+	}
 }
 
 func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userIDCookie, err := r.Cookie(UserIDCtxName.String())
+		userIDCookie, err := r.Cookie(dto.UserIDCtxName.String())
 
 		var cookieUserID string
 		if errors.Is(err, http.ErrNoCookie) { //no cookie
@@ -51,9 +42,21 @@ func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 			}
 		}
 
-		userIDCtxName := UserIDCtxName
+		userIDCtxName := dto.UserIDCtxName
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDCtxName, cookieUserID)))
 	})
+}
+
+func TakeUserID(context context.Context) (string, error) {
+	userIDCtx := ""
+	if id := context.Value(dto.UserIDCtxName); id != nil {
+		userIDCtx = id.(string)
+	}
+
+	if userIDCtx == "" {
+		return "", errors.New("empty user id")
+	}
+	return userIDCtx, nil
 }
 
 //**********************************************************************************************************************
@@ -61,7 +64,7 @@ func (h *CookieHandler) CreateNewCookie(userID *string) *http.Cookie {
 	*userID = uuid.New().String()
 	token := h.cr.Encode(*userID)
 	cookie := &http.Cookie{
-		Name:  UserIDCtxName.String(),
+		Name:  dto.UserIDCtxName.String(),
 		Value: token,
 		Path:  "/",
 	}
