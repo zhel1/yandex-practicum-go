@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+//MD5 generates a fixed length hash from a string
 func MD5(data string) string {
 	h := md5.Sum([]byte(data))
 	return fmt.Sprintf("%x", h)

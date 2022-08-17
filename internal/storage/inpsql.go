@@ -3,33 +3,38 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"github.com/lib/pq"
 	"runtime"
 	"time"
+
+	"github.com/lib/pq"
+
 	//_ "github.com/jackc/pgx/v4/stdlib"
-	"golang.org/x/sync/errgroup"
 	"log"
+
+	"golang.org/x/sync/errgroup"
 )
 
+//DB PSQL struct
 type InPSQL struct {
-	DB  *sql.DB
-	deleteBuf chan DeleteEntry //collect url until buff is full
+	DB          *sql.DB
+	deleteBuf   chan DeleteEntry //collect url until buff is full
 	deleteQueue chan []DeleteEntry
-	done chan int
+	done        chan int
 }
 
-func NewInPSQL(databaseDSN string) (Storage, error){
+//NewInPSQL is DB constructor
+func NewInPSQL(databaseDSN string) (Storage, error) {
 	//db, err := sql.Open("pgx", databaseDSN)
 	db, err := sql.Open("postgres", databaseDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	inPSQL := InPSQL {
-		DB:  db,
-		deleteBuf: make(chan DeleteEntry),
+	inPSQL := InPSQL{
+		DB:          db,
+		deleteBuf:   make(chan DeleteEntry),
 		deleteQueue: make(chan []DeleteEntry),
-		done: make(chan int),
+		done:        make(chan int),
 	}
 
 	if err = inPSQL.DB.Ping(); err != nil {
@@ -45,17 +50,17 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 		bufferSize := 5
 
 		t := time.NewTicker(expireTime)
-		parts := make([]DeleteEntry,0,bufferSize)
+		parts := make([]DeleteEntry, 0, bufferSize)
 
 		for {
 			select {
-			case <- t.C:
+			case <-t.C:
 				if len(parts) > 0 {
 					log.Println("Deleted URLs due to timeout")
 					inPSQL.deleteQueue <- parts
-					parts = make([]DeleteEntry,0,bufferSize)
+					parts = make([]DeleteEntry, 0, bufferSize)
 				}
-			case part, ok := <- inPSQL.deleteBuf:
+			case part, ok := <-inPSQL.deleteBuf:
 				if !ok { // if chanel was closed
 					return
 				}
@@ -63,7 +68,7 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 				if len(parts) >= bufferSize {
 					log.Println("Deleted URLs due to exceeding capacity")
 					inPSQL.deleteQueue <- parts
-					parts = make([]DeleteEntry,0,bufferSize)
+					parts = make([]DeleteEntry, 0, bufferSize)
 				}
 			}
 		}
@@ -87,6 +92,7 @@ func NewInPSQL(databaseDSN string) (Storage, error){
 	return &inPSQL, nil
 }
 
+//Get gets base URL from DB
 func (s *InPSQL) Get(shortURL string) (string, error) {
 	var originURL string
 	var id int
@@ -133,6 +139,7 @@ func (s *InPSQL) Get(shortURL string) (string, error) {
 	return originURL, err
 }
 
+//GetUserLinks gets all URLs by UserID from DB
 func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error) {
 	query := "SELECT short_url, origin_url FROM users_url RIGHT JOIN urls u on users_url.url_id=u.id WHERE user_id=$1;"
 	rows, err := s.DB.Query(query, userID)
@@ -158,8 +165,9 @@ func (s *InPSQL) GetUserLinks(userID string) (map[string]string, error) {
 	return result, nil
 }
 
+//Put sets short URL in DB
 func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
-	var id int  //serial id in urls table
+	var id int //serial id in urls table
 	addURLStmt, err := s.DB.Prepare(`INSERT INTO urls (origin_url, short_url) VALUES ($1, $2) RETURNING id`)
 	if err != nil {
 		return err
@@ -193,26 +201,30 @@ func (s *InPSQL) Put(userID string, shortURL, originURL string) error {
 	return nil
 }
 
+//Close stops active workers disconnects from DB
 func (s *InPSQL) Close() error {
 	close(s.deleteBuf)
 	close(s.deleteQueue)
-	<- s.done
+	<-s.done
 	s.DB.Close()
 	return nil
 }
 
+//Ping DB checks connection to DB
 func (s *InPSQL) PingDB() error {
 	return s.DB.Ping()
 }
 
-//FanIn pattern: requests from all users are being put in one queue
+//Delete deletes short URLs in DB by user ID
+//It releases FanIn pattern: requests from all users are being put in one queue
 func (s *InPSQL) Delete(shortURLs []string, userID string) error {
 	for _, url := range shortURLs {
-		s.deleteBuf <- DeleteEntry{UserID:  userID, SURL: url}
+		s.deleteBuf <- DeleteEntry{UserID: userID, SURL: url}
 	}
 	return nil
 }
 
+//Delete deletes batch short URLs in DB by user ID
 func (s *InPSQL) DeleteBatch(shortURLs []string, userID string) error {
 	deleteStmt, err := s.DB.Prepare("UPDATE users_url SET is_deleted = true WHERE user_id = $1 AND url_id = ANY(SELECT id FROM urls WHERE short_url = ANY($2));")
 	if err != nil {
@@ -284,4 +296,3 @@ func (s *InPSQL) createTable() error {
 	_, err := s.DB.Exec(query)
 	return err
 }
-

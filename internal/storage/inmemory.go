@@ -5,18 +5,21 @@ import (
 	"sync"
 )
 
+//DB in memory struct
 type InMemory struct {
 	sync.RWMutex
 	m map[string]UserData
 }
 
+//NewInMemory is DB constructor
 func NewInMemory() Storage {
 	return &InMemory{
-		m:  make(map[string]UserData),
+		m: make(map[string]UserData),
 	}
 }
 
-func (s *InMemory) Get(shortURL string) (string, error){
+//Get gets base URL from DB
+func (s *InMemory) Get(shortURL string) (string, error) {
 	s.RLock()
 	defer s.RUnlock()
 	for _, usrData := range s.m {
@@ -26,7 +29,9 @@ func (s *InMemory) Get(shortURL string) (string, error){
 	}
 	return "", ErrNotFound
 }
-func (s *InMemory) GetUserLinks(userID string) (map[string]string, error){
+
+//GetUserLinks gets all URLs by UserID from DB
+func (s *InMemory) GetUserLinks(userID string) (map[string]string, error) {
 	s.RLock()
 	defer s.RUnlock()
 	if usrData, ok := s.m[userID]; ok {
@@ -36,6 +41,7 @@ func (s *InMemory) GetUserLinks(userID string) (map[string]string, error){
 	}
 }
 
+//Put sets short URL in DB
 func (s *InMemory) Put(userID, shortURL, originURL string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -54,6 +60,7 @@ func (s *InMemory) Put(userID, shortURL, originURL string) error {
 	return nil
 }
 
+//Close clears the map with user data
 func (s *InMemory) Close() error {
 	s.Lock()
 	defer s.Unlock()
@@ -61,15 +68,19 @@ func (s *InMemory) Close() error {
 	return nil
 }
 
-// SendToQueue is a mock for PSQL DB batch concurrent deleter.
+//Close stops active workers disconnects from DB
 func (s *InMemory) Delete(shortURLs []string, userID string) error {
 	return nil
 }
+
 //**********************************************************************************************************************
+
+//MarshalJSON serializes the database given in json format
 func (s *InMemory) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.m)
 }
 
+//UnmarshalJSON deserializes the database given from json format
 func (s *InMemory) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &((*s).m)); err != nil {
 		return err

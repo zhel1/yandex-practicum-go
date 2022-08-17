@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/zhel1/yandex-practicum-go/internal/utils"
-	"net/http"
 )
 
 type CookieConst string
@@ -14,6 +15,7 @@ type CookieConst string
 func (c CookieConst) String() string {
 	return string(c)
 }
+
 var (
 	UserIDCtxName CookieConst = "UserID"
 )
@@ -53,12 +55,13 @@ func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDCtxName, cookieUserID)))
 	})
 }
+
 //**********************************************************************************************************************
-func (h *CookieHandler)CreateNewCookie(userID *string) *http.Cookie {
+func (h *CookieHandler) CreateNewCookie(userID *string) *http.Cookie {
 	*userID = uuid.New().String()
 	token := h.cr.Encode(*userID)
 	cookie := &http.Cookie{
-		Name: UserIDCtxName.String(),
+		Name:  UserIDCtxName.String(),
 		Value: token,
 		Path:  "/",
 	}

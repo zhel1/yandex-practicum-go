@@ -6,17 +6,20 @@ import (
 	"log"
 )
 
+// DeleteWorker is used in InPSQL for processing of requests for deletion
 type DeleteWorker struct {
 	ID  int
 	st  Storage
 	ctx context.Context
 }
 
+// DeleteEntry is item with information for one delete operation
 type DeleteEntry struct {
 	UserID string
-	SURL  string
+	SURL   string
 }
 
+// deleteAsyncInPSQL reads delete queue
 func (d *DeleteWorker) deleteAsyncInPSQL() error {
 	s, valid := d.st.(*InPSQL)
 	if !valid {

@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Shortner
+  description: A sample API that uses a shortener in the OpenAPI 3.0 specification
+  contact:
+    name: Denis Zheleznov
+    email: zhel@yandex.ru
+  license:
+    name: Horns and Hooves Company 2.0
+  version: 1.0.0
+servers:
+  - url: https://shortner.io
+paths:
+  /:
+    post:
+      security:
+        - cookieAuth: [ ]
+      summary: Accepts a URL string in the request body for shortening
+      operationId: AddLink
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: URL shortened and saved
+        '400':
+          description: Invalid request format
+  /{id}:
+    get:
+      summary: Accepts the identifier of the short URL as a URL parameter and returns a response
+      operationId: GetLink
+      parameters:
+        - name: id
+          in: path
+          description: Short URL ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '307':
+          description: Redirect. The original URL in the HTTP Location header
+          headers:
+            Location:
+              schema:
+                type: string
+                description: The original URL
+        '400':
+          description: Invalid request format
+        '410':
+          description: URL was deleted
+  /api/shorten:
+    post:
+      security:
+        - cookieAuth: [ ]
+      summary: Accepting a JSON object in the request body and returning a JSON objec in response
+      operationId: AddLinkJSON
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelRequestURL'
+      responses:
+        '201':
+          description: URL shortened and saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelResponseURL'
+        '400':
+          description: Invalid request format
+        '409':
+          description: URL was crated
+  /api/user/urls:
+    get:
+      security:
+        - cookieAuth: [ ]
+      summary: Return to the user all ever saved by him
+      operationId: GetUserLinks
+      responses:
+        '201':
+          description: URL shortened and saved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelURL'
+        '400':
+          description: Invalid request format
+    delete:
+      security:
+        - cookieAuth: [ ]
+      summary: Accepts a list of abbreviated URL IDs to delete
+      operationId: DeleteUserLinksBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      responses:
+        '202':
+          description: Deletion successful
+        '400':
+          description: Invalid request format
+  /api/shorten/batch:
+    post:
+      security:
+        - cookieAuth: [ ]
+      summary: Accepting in the request body a set of URLs for shortening in the format
+      operationId: AddLinkBatchJSON
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ModelRequestURL'
+      responses:
+        '201':
+          description: URL shortened and saved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelResponseURL'
+        '400':
+          description: Invalid request format
+  /ping:
+    get:
+      summary: Checks the connection to the database
+      operationId: GetPing
+      responses:
+        '200':
+          description: Сonnection successful
+        '500':
+          description: Сonnection failed
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: cookie
+  schemas:
+    ModelResponseURL:
+      type: object
+      required:
+        -  result
+      properties:
+        result:
+          type: string
+    ModelRequestURL:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+    ModelURL:
+      type: object
+      required:
+        - short_url
+        - original_url
+      properties:
+        short_url:
+          type: string
+        original_url:
+          type: string
+
+
+  

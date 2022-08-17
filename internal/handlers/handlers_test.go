@@ -21,13 +21,13 @@ import (
 
 type HandlersTestSuite struct {
 	suite.Suite
-	storage          storage.Storage
-	cfg              *config.Config
-	urlHandler       *URLHandler
-	cookieHandler    *middleware.CookieHandler
-	cookieEncriptor  *utils.Crypto
-	router           *chi.Mux
-	ts               *httptest.Server
+	storage         storage.Storage
+	cfg             *config.Config
+	urlHandler      *URLHandler
+	cookieHandler   *middleware.CookieHandler
+	cookieEncriptor *utils.Crypto
+	router          *chi.Mux
+	ts              *httptest.Server
 }
 
 func (ht *HandlersTestSuite) SetupTest() {
@@ -50,11 +50,11 @@ func TestHandlersTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlersTestSuite))
 }
 
-func (ht *HandlersTestSuite)TestGetLink() {
+func (ht *HandlersTestSuite) TestGetLink() {
 	ht.router.Get("/{id}", ht.urlHandler.GetLink())
 	userID := uuid.New().String()
-	ht.storage.Put(userID,"1234567", "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6")
-	ht.storage.Put(userID,"1234568", "https://yandex.ru/news/")
+	ht.storage.Put(userID, "1234567", "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6")
+	ht.storage.Put(userID, "1234568", "https://yandex.ru/news/")
 	defer ht.ts.Close()
 
 	tests := []struct {
@@ -108,7 +108,7 @@ func (ht *HandlersTestSuite)TestGetLink() {
 	}
 }
 
-func (ht *HandlersTestSuite)TestAddLink() {
+func (ht *HandlersTestSuite) TestAddLink() {
 	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/", ht.urlHandler.AddLink())
 	defer ht.ts.Close()
@@ -122,7 +122,7 @@ func (ht *HandlersTestSuite)TestAddLink() {
 		name string
 		body string
 		want want
-	} {
+	}{
 		{
 			name: "positive test #1",
 			body: "https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6",
@@ -172,7 +172,7 @@ func (ht *HandlersTestSuite)TestAddLink() {
 	}
 }
 
-func (ht *HandlersTestSuite)TestAddLinkJSON() {
+func (ht *HandlersTestSuite) TestAddLinkJSON() {
 	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/api/shorten", ht.urlHandler.AddLinkJSON())
 	defer ht.ts.Close()
@@ -186,7 +186,7 @@ func (ht *HandlersTestSuite)TestAddLinkJSON() {
 		name string
 		body string
 		want want
-	} {
+	}{
 		{
 			name: "positive test #1",
 			body: "{\"url\":\"https://yandex.ru/news/story/Minoborony_zayavilo_ob_unichtozhenii_podLvovom_sklada_inostrannogo_oruzhiya--5da2bb9cc9ddc47c0adb17be6d81bd72?lang=ru&rubric=index&fan=1&stid=yjizNz0bbyG1LTQtz2jv&t=1650312349&tt=true&persistent_id=192628644&story=4bc48b1b-a772-571f-a583-40d87f145dd6\"}",
@@ -245,7 +245,7 @@ func (ht *HandlersTestSuite)TestAddLinkJSON() {
 	}
 }
 
-func (ht *HandlersTestSuite)TestGetUserLinks() {
+func (ht *HandlersTestSuite) TestGetUserLinks() {
 	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Get("/api/user/urls", ht.urlHandler.GetUserLinks())
 
@@ -259,27 +259,29 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 	tests := []struct {
 		name     string
 		value    string
-		stData 	 bool
+		stData   bool
 		wantCode int
 	}{
 		{
 			name:     "Negative test #1. No user in database.",
-			stData:  false,
+			stData:   false,
 			wantCode: http.StatusNoContent,
 		},
 		{
 			name:     "Positive test #2",
-			stData: true,
+			stData:   true,
 			wantCode: http.StatusOK,
 		},
 	}
 
 	for _, tt := range tests {
-		if tt.stData { ht.storage.Put(userID, idLink, origLink) }
+		if tt.stData {
+			ht.storage.Put(userID, idLink, origLink)
+		}
 		ht.T().Run(tt.name, func(t *testing.T) {
 			client := resty.New()
 			client.SetCookie(&http.Cookie{
-				Name: middleware.UserIDCtxName.String(),
+				Name:  middleware.UserIDCtxName.String(),
 				Value: crypto.Encode(userID),
 				Path:  "/",
 			})
@@ -290,7 +292,7 @@ func (ht *HandlersTestSuite)TestGetUserLinks() {
 	}
 }
 
-func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
+func (ht *HandlersTestSuite) TestAddLinkBatchJSON() {
 	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Post("/api/shorten/batch", ht.urlHandler.AddLinkBatchJSON())
 	defer ht.ts.Close()
@@ -304,7 +306,7 @@ func (ht *HandlersTestSuite)TestAddLinkBatchJSON() {
 		name string
 		body string
 		want want
-	} {
+	}{
 		{
 			name: "positive test #1",
 			body: " [{\"correlation_id\":\"1eb421e4-4405-4d36-b6bf-55c4e3a1268f\",\"original_url\":\"http://khawesxujm.biz/fdapyknrhiywl0\"},{\"correlation_id\":\"8100b303-5b7c-4c41-800e-7f76dca94d7d\",\"original_url\":\"http://jlth8bcthyp01q.ru/zkd2d\"}]",
