@@ -1,3 +1,4 @@
+//Package utils provides helper functions for all app.
 package utils
 
 import (

@@ -1,15 +1,17 @@
-package storage
+// Package inpsql implements storage in postgres database.
+package inpsql
 
 import (
 	"context"
 	"errors"
+	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"log"
 )
 
-// DeleteWorker is used in InPSQL for processing of requests for deletion
+// DeleteWorker is used in Storage for processing of requests for deletion
 type DeleteWorker struct {
 	ID  int
-	st  Storage
+	st  storage.Storage
 	ctx context.Context
 }
 
@@ -21,7 +23,7 @@ type DeleteEntry struct {
 
 // deleteAsyncInPSQL reads delete queue
 func (d *DeleteWorker) deleteAsyncInPSQL() error {
-	s, valid := d.st.(*InPSQL)
+	s, valid := d.st.(*Storage)
 	if !valid {
 		return errors.New("storage is not PSQL")
 	}
@@ -37,7 +39,7 @@ func (d *DeleteWorker) deleteAsyncInPSQL() error {
 			}
 		}
 		for userID, sURLs := range uniqueMap {
-			err := s.DeleteBatch(sURLs, userID)
+			err := s.DeleteBatch(context.Background(), sURLs, userID)
 			if err != nil {
 				log.Println("DeleteBatch ERROR: ", err)
 				return err

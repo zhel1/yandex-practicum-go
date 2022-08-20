@@ -1,3 +1,4 @@
+// Package middleware provides various middleware functionality.
 package middleware
 
 import (

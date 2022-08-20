@@ -1,55 +1,31 @@
+//
 package server
 
 import (
-	"log"
+	"context"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/zhel1/yandex-practicum-go/internal/config"
-	"github.com/zhel1/yandex-practicum-go/internal/handlers"
-	"github.com/zhel1/yandex-practicum-go/internal/middleware"
-	"github.com/zhel1/yandex-practicum-go/internal/storage"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
 )
 
 //Server struct
 type Server struct {
-	Config  *config.Config
-	Storage storage.Storage
+	httpServer *http.Server
 }
 
-func (s *Server) StartServer() error {
-	URLHandler, err := handlers.InitURLHandler(s.Storage, s.Config)
-	if err != nil {
-		return err
+func NewServer(cfg *config.Config, handler http.Handler) *Server {
+	return &Server{
+		httpServer: &http.Server{
+			Addr:    cfg.Addr,
+			Handler: handler,
+		},
 	}
+}
 
-	crypto, err := utils.NewCrypto(s.Config.UserKey)
-	if err != nil {
-		return err
-	}
+func (s *Server) Run() error {
+	return s.httpServer.ListenAndServe()
+}
 
-	cookieHandler, err := middleware.NewCookieHandler(crypto)
-	if err != nil {
-		return err
-	}
-
-	r := chi.NewRouter()
-	r.Use(middleware.GzipHandler)
-	r.Use(cookieHandler.CookieHandler)
-	r.Post("/", URLHandler.AddLink())
-	r.Post("/api/shorten", URLHandler.AddLinkJSON())
-	r.Post("/api/shorten/batch", URLHandler.AddLinkBatchJSON())
-	r.Get("/api/user/urls", URLHandler.GetUserLinks())
-	r.Get("/{id}", URLHandler.GetLink())
-	r.Get("/ping", URLHandler.GetPing())
-	r.Delete("/api/user/urls", URLHandler.DeleteUserLinksBatch())
-
-	server := &http.Server{
-		Addr:    s.Config.Addr,
-		Handler: r,
-	}
-
-	log.Fatalln(server.ListenAndServe())
-	return nil
+func (s *Server) Stop(ctx context.Context) error {
+	return s.httpServer.Shutdown(ctx)
 }
