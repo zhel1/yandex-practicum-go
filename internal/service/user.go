@@ -3,8 +3,10 @@ package service
 
 import (
 	"context"
+	"github.com/zhel1/yandex-practicum-go/internal/auth"
 	"github.com/zhel1/yandex-practicum-go/internal/dto"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
+	"time"
 )
 
 // Check interface implementation
@@ -13,15 +15,35 @@ var (
 )
 
 type UserService struct {
-	storage storage.Storage
-	baseURL string
+	storage      storage.Storage
+	baseURL      string
+	tokenManager auth.TokenManager
 }
 
-func NewUserService(storage storage.Storage, baseURL string) *UserService {
+func NewUserService(storage storage.Storage, baseURL string, tokenManager auth.TokenManager) *UserService {
 	return &UserService{
-		storage: storage,
-		baseURL: baseURL,
+		storage:      storage,
+		baseURL:      baseURL,
+		tokenManager: tokenManager,
 	}
+}
+
+func (s *UserService) CreateNewToken(ctx context.Context, userID string) (string, error) {
+	var expiredAt time.Duration = 1<<63 - 1 //forever
+	token, err := s.tokenManager.NewJWT(userID, expiredAt)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (s *UserService) CheckToken(ctx context.Context, token string) (string, error) {
+	userID, err := s.tokenManager.Parse(token)
+	if err != nil {
+		return "", err
+	}
+	return userID, nil
 }
 
 func (s *UserService) GetOriginalURLByShort(ctx context.Context, shortURL string) (string, error) {

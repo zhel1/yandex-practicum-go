@@ -2,12 +2,12 @@
 package app
 
 import (
+	"github.com/zhel1/yandex-practicum-go/internal/auth"
 	"github.com/zhel1/yandex-practicum-go/internal/http"
 	"github.com/zhel1/yandex-practicum-go/internal/service"
 	"github.com/zhel1/yandex-practicum-go/internal/storage/infile"
 	"github.com/zhel1/yandex-practicum-go/internal/storage/inmemory"
 	"github.com/zhel1/yandex-practicum-go/internal/storage/inpsql"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"log"
 
 	"github.com/zhel1/yandex-practicum-go/internal/config"
@@ -41,14 +41,19 @@ func Run() {
 	}
 	defer strg.Close()
 
+	tokenManager, err := auth.NewManager(cfg.UserKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	deps := service.Deps{
-		Storage: strg,
-		BaseURL: cfg.BaseURL,
+		Storage:      strg,
+		BaseURL:      cfg.BaseURL,
+		TokenManager: tokenManager,
 	}
 
 	services := service.NewServices(deps)
-	crypto := utils.NewCrypto(cfg.UserKey)
-	handlers := http.NewHandler(services, crypto)
+	handlers := http.NewHandler(services)
 
 	// HTTP Server
 	server := server.NewServer(&cfg, handlers.Init())

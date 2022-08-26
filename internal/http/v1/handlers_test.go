@@ -10,13 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/zhel1/yandex-practicum-go/internal/auth"
 	"github.com/zhel1/yandex-practicum-go/internal/config"
 	"github.com/zhel1/yandex-practicum-go/internal/dto"
 	"github.com/zhel1/yandex-practicum-go/internal/http/middleware"
 	"github.com/zhel1/yandex-practicum-go/internal/service"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"github.com/zhel1/yandex-practicum-go/internal/storage/inmemory"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,13 +27,12 @@ import (
 
 type HandlersTestSuite struct {
 	suite.Suite
-	storage         storage.Storage
-	cfg             *config.Config
-	handler         *Handler
-	cookieHandler   *middleware.CookieHandler
-	cookieEncriptor *utils.Crypto
-	router          *chi.Mux
-	ts              *httptest.Server
+	storage       storage.Storage
+	cfg           *config.Config
+	handler       *Handler
+	cookieHandler *middleware.CookieHandler
+	router        *chi.Mux
+	ts            *httptest.Server
 }
 
 func (ht *HandlersTestSuite) SetupTest() {
@@ -42,19 +42,23 @@ func (ht *HandlersTestSuite) SetupTest() {
 	cfg.FileStoragePath = ""
 	cfg.UserKey = "PaSsW0rD"
 
+	tokenManager, err := auth.NewManager(cfg.UserKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	deps := service.Deps{
-		Storage: inmemory.NewStorage(),
-		BaseURL: cfg.BaseURL,
+		Storage:      inmemory.NewStorage(),
+		BaseURL:      cfg.BaseURL,
+		TokenManager: tokenManager,
 	}
 
 	services := service.NewServices(deps)
-	crypto := utils.NewCrypto(cfg.UserKey)
 
 	ht.cfg = &cfg
-	ht.cookieEncriptor = crypto
 	ht.storage = deps.Storage
 	ht.handler = NewHandler(services)
-	ht.cookieHandler = middleware.NewCookieHandler(crypto)
+	ht.cookieHandler = middleware.NewCookieHandler(services)
 	ht.router = chi.NewRouter()
 	ht.ts = httptest.NewServer(ht.router)
 }
@@ -140,8 +144,12 @@ func (ht *HandlersTestSuite) TestGetUserLinks() {
 	ht.router.Use(ht.cookieHandler.CookieHandler)
 	ht.router.Get("/api/user/urls", ht.handler.GetUserLinks())
 
-	crypto := utils.NewCrypto(ht.cfg.UserKey)
-	userID := crypto.Encode(uuid.New().String())
+	userID := uuid.New().String()
+	token, err := ht.handler.services.Users.CreateNewToken(context.Background(), userID)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	idLink := "1234568"
 	origLink := "https://yandex.ru/news/"
 
@@ -173,7 +181,7 @@ func (ht *HandlersTestSuite) TestGetUserLinks() {
 			client := resty.New()
 			client.SetCookie(&http.Cookie{
 				Name:  dto.UserIDCtxName.String(),
-				Value: crypto.Encode(userID),
+				Value: token,
 				Path:  "/",
 			})
 			resp, err := client.R().Get(ht.ts.URL + "/api/user/urls")

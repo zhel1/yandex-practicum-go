@@ -15,6 +15,7 @@ var (
 	_ storage.Storage = (*Storage)(nil)
 )
 
+// Storage is DB in file struct
 type Storage struct {
 	file    *os.File
 	cache   storage.Storage

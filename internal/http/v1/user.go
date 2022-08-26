@@ -17,7 +17,7 @@ func (h *Handler) initUserRoutes(r chi.Router) {
 	})
 }
 
-//GetUserLinks returns to the user all links ever saved by him
+// GetUserLinks returns to the user all links ever saved by him.
 func (h *Handler) GetUserLinks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := middleware.TakeUserID(r.Context())
@@ -51,7 +51,7 @@ func (h *Handler) GetUserLinks() http.HandlerFunc {
 	}
 }
 
-//DeleteUserLinksBatch accepts a list of abbreviated URL IDs to delete
+// DeleteUserLinksBatch accepts a list of abbreviated URL IDs to delete.
 func (h *Handler) DeleteUserLinksBatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := middleware.TakeUserID(r.Context())
