@@ -10,25 +10,25 @@ import (
 	"sync"
 )
 
-//Check interface implementation
+// Check interface implementation.
 var (
 	_ storage.Storage = (*Storage)(nil)
 )
 
-//DB in memory struct
+// Storage is DB in memory struct
 type Storage struct {
 	sync.RWMutex
 	m map[string]storage.UserData
 }
 
-//NewStorage is DB constructor
+// NewStorage creates DB in memory.
 func NewStorage() storage.Storage {
 	return &Storage{
 		m: make(map[string]storage.UserData),
 	}
 }
 
-//Get gets base URL from DB
+// Get gets base URL from DB.
 func (s *Storage) Get(ctx context.Context, shortURL string) (string, error) {
 	s.RLock()
 	defer s.RUnlock()
@@ -40,7 +40,7 @@ func (s *Storage) Get(ctx context.Context, shortURL string) (string, error) {
 	return "", &storageErrors.NotFoundError{Err: dto.ErrNotFound}
 }
 
-//GetUserLinks gets all URLs by UserID from DB
+// GetUserLinks returns all URLs by UserID from DB.
 func (s *Storage) GetUserLinks(ctx context.Context, userID string) (map[string]string, error) {
 	s.RLock()
 	defer s.RUnlock()
@@ -51,7 +51,7 @@ func (s *Storage) GetUserLinks(ctx context.Context, userID string) (map[string]s
 	}
 }
 
-//Put sets short URL in DB
+// Put save short URL in DB.
 func (s *Storage) Put(ctx context.Context, userID, shortURL, originURL string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -70,6 +70,7 @@ func (s *Storage) Put(ctx context.Context, userID, shortURL, originURL string) e
 	return nil
 }
 
+// Put save short URLs in DB.
 func (s *Storage) PutBatch(ctx context.Context, userID string, batchForDB map[string]string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -88,12 +89,12 @@ func (s *Storage) PutBatch(ctx context.Context, userID string, batchForDB map[st
 	return nil
 }
 
-//Close stops active workers disconnects from DB
+// Delete needs to implement Storage interface.
 func (s *Storage) Delete(ctx context.Context, shortURLs []string, userID string) error {
 	return nil
 }
 
-//Close clears the map with user data
+// Close clears the map with user data.
 func (s *Storage) Close() error {
 	s.Lock()
 	defer s.Unlock()

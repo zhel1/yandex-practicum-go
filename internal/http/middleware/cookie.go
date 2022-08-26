@@ -6,23 +6,23 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zhel1/yandex-practicum-go/internal/dto"
+	"github.com/zhel1/yandex-practicum-go/internal/service"
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
 )
 
 type CookieHandler struct {
-	cr *utils.Crypto
+	services *service.Services
 }
 
-func NewCookieHandler(cr *utils.Crypto) *CookieHandler {
-	if cr == nil {
-		panic(fmt.Errorf("nil Storage was passed to service URL Handler initializer"))
+func NewCookieHandler(services *service.Services) *CookieHandler {
+	if services == nil {
+		panic(fmt.Errorf("nil services was passed to service URL Handler initializer"))
 	}
 
 	return &CookieHandler{
-		cr: cr,
+		services: services,
 	}
 }
 
@@ -30,20 +30,21 @@ func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userIDCookie, err := r.Cookie(dto.UserIDCtxName.String())
 
-		var cookieUserID string
+		var userID string
 		if errors.Is(err, http.ErrNoCookie) { //no cookie
-			http.SetCookie(w, h.CreateNewCookie(&cookieUserID))
+			userID = uuid.New().String()
+			http.SetCookie(w, h.CreateNewCookie(r.Context(), userID))
 		} else if err != nil {
 			http.Error(w, "Cookie crumbled", http.StatusInternalServerError)
 		} else { //cookie found
-			cookieUserID, err = h.cr.Decode(userIDCookie.Value)
+			userID, err = h.services.Users.CheckToken(r.Context(), userIDCookie.Value)
 			if err != nil {
-				http.SetCookie(w, h.CreateNewCookie(&cookieUserID))
+				http.SetCookie(w, h.CreateNewCookie(r.Context(), userID))
 			}
 		}
 
 		userIDCtxName := dto.UserIDCtxName
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDCtxName, cookieUserID)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDCtxName, userID)))
 	})
 }
 
@@ -61,9 +62,12 @@ func TakeUserID(context context.Context) (string, error) {
 
 //**********************************************************************************************************************
 
-func (h *CookieHandler) CreateNewCookie(userID *string) *http.Cookie {
-	*userID = uuid.New().String()
-	token := h.cr.Encode(*userID)
+func (h *CookieHandler) CreateNewCookie(ctx context.Context, userID string) *http.Cookie {
+	token, err := h.services.Users.CreateNewToken(ctx, userID)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	cookie := &http.Cookie{
 		Name:  dto.UserIDCtxName.String(),
 		Value: token,

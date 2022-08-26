@@ -9,27 +9,24 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/http/middleware"
 	v1 "github.com/zhel1/yandex-practicum-go/internal/http/v1"
 	"github.com/zhel1/yandex-practicum-go/internal/service"
-	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"io"
 	"net/http"
 )
 
 type Handler struct {
 	services *service.Services
-	crypto   *utils.Crypto
 }
 
-func NewHandler(services *service.Services, crypto *utils.Crypto) *Handler {
+func NewHandler(services *service.Services) *Handler {
 	return &Handler{
 		services: services,
-		crypto:   crypto,
 	}
 }
 
 func (h *Handler) Init() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.GzipHandler)
-	router.Use(middleware.NewCookieHandler(h.crypto).CookieHandler)
+	router.Use(middleware.NewCookieHandler(h.services).CookieHandler)
 
 	router.Post("/", h.AddLink())
 	router.Get("/{id}", h.GetLink())
@@ -47,7 +44,7 @@ func (h *Handler) initAPI(router chi.Router) {
 	})
 }
 
-//AddLink accepts a URL string in the request body for shortening
+// AddLink accepts a URL string in the request body for shortening.
 func (h *Handler) AddLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := middleware.TakeUserID(r.Context())
