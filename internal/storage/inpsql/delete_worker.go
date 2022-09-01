@@ -32,13 +32,8 @@ func (d *DeleteWorker) deleteAsyncInPSQL() error {
 	shutdown := false
 
 	go func() {
-		for {
-			select {
-			case <-s.shutdown:
-				shutdown = true
-				return
-			}
-		}
+		<-s.shutdown
+		shutdown = true
 	}()
 
 	// listen to the channel new values and process them until chanel is closed or ctc.Done()
