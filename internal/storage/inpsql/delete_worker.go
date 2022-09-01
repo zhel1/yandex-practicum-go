@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/zhel1/yandex-practicum-go/internal/storage"
 	"log"
+	"time"
 )
 
 // DeleteWorker is used in Storage for processing of requests for deletion
@@ -28,23 +29,49 @@ func (d *DeleteWorker) deleteAsyncInPSQL() error {
 		return errors.New("storage is not PSQL")
 	}
 
-	// listen to the channel new values and process them until chanel is closed
-	for records := range s.deleteQueue {
-		uniqueMap := make(map[string][]string) //[user][]urls
-		for _, r := range records {
-			if _, exist := uniqueMap[r.UserID]; !exist {
-				uniqueMap[r.UserID] = []string{r.SURL}
-			} else {
-				uniqueMap[r.UserID] = append(uniqueMap[r.UserID], r.SURL)
+	shutdown := false
+
+	go func() {
+		for {
+			select {
+			case <-s.shutdown:
+				shutdown = true
+				return
 			}
 		}
-		for userID, sURLs := range uniqueMap {
-			err := s.DeleteBatch(context.Background(), sURLs, userID)
-			if err != nil {
-				log.Println("DeleteBatch ERROR: ", err)
-				return err
+	}()
+
+	// listen to the channel new values and process them until chanel is closed or ctc.Done()
+	for {
+		select {
+		case <-d.ctx.Done():
+			return nil
+		case records, ok := <-s.deleteQueue:
+			// if channel is closed
+			if !ok {
+				return nil
 			}
+
+			uniqueMap := make(map[string][]string) //[user][]urls
+			for _, r := range records {
+				if _, exist := uniqueMap[r.UserID]; !exist {
+					uniqueMap[r.UserID] = []string{r.SURL}
+				} else {
+					uniqueMap[r.UserID] = append(uniqueMap[r.UserID], r.SURL)
+				}
+			}
+			for userID, sURLs := range uniqueMap {
+				err := s.DeleteBatch(context.Background(), sURLs, userID)
+				if err != nil {
+					log.Println("DeleteBatch ERROR: ", err)
+					return err
+				}
+			}
+		default:
+			if shutdown {
+				return nil
+			}
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
-	return nil
 }

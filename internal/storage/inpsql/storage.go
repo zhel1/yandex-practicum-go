@@ -31,6 +31,7 @@ type Storage struct {
 	DB          *sql.DB
 	deleteBuf   chan DeleteEntry //collect url until buff is full
 	deleteQueue chan []DeleteEntry
+	shutdown    chan int
 	done        chan int
 }
 
@@ -46,6 +47,7 @@ func NewStorage(databaseDSN string) (storage.Storage, error) {
 		DB:          db,
 		deleteBuf:   make(chan DeleteEntry),
 		deleteQueue: make(chan []DeleteEntry),
+		shutdown:    make(chan int),
 		done:        make(chan int),
 	}
 
@@ -407,9 +409,10 @@ func (s *Storage) PingDB() error {
 
 //Close stops active workers disconnects from DB
 func (s *Storage) Close() error {
+	close(s.shutdown)
+	<-s.done
 	close(s.deleteBuf)
 	close(s.deleteQueue)
-	<-s.done
 	s.DB.Close()
 	return nil
 }
