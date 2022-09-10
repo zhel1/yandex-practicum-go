@@ -83,6 +83,16 @@ func (s *Storage) Delete(ctx context.Context, shortURLs []string, userID string)
 	return nil
 }
 
+// GetURLsCount returns the mount of all urls in DB
+func (s *Storage) GetURLsCount(ctx context.Context) (int, error) {
+	return s.cache.GetURLsCount(ctx)
+}
+
+// GetURLsCount returns the mount of all users in DB
+func (s *Storage) GetUserCount(ctx context.Context) (int, error) {
+	return s.cache.GetUserCount(ctx)
+}
+
 // Close removes cache and close thr file
 func (s *Storage) Close() error {
 	s.cache = nil

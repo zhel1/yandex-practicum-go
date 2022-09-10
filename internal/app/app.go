@@ -10,6 +10,7 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/storage/inmemory"
 	"github.com/zhel1/yandex-practicum-go/internal/storage/inpsql"
 	"log"
+	"net"
 	nethttp "net/http"
 	"os"
 	"os/signal"
@@ -50,10 +51,19 @@ func Run() {
 		log.Fatal(err)
 	}
 
+	var ipnet *net.IPNet = nil
+	if cfg.TrustedSubnet != "" {
+		_, ipnet, err = net.ParseCIDR(cfg.TrustedSubnet)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	deps := service.Deps{
-		Storage:      strg,
-		BaseURL:      cfg.BaseURL,
-		TokenManager: tokenManager,
+		Storage:       strg,
+		BaseURL:       cfg.BaseURL,
+		TokenManager:  tokenManager,
+		TrustedSubnet: ipnet,
 	}
 
 	services := service.NewServices(deps)

@@ -417,6 +417,44 @@ func (s *Storage) Close() error {
 	return nil
 }
 
+func (s *Storage) GetURLsCount(ctx context.Context) (int, error) {
+	getURLsCountStmt, err := s.DB.PrepareContext(ctx, "SELECT COUNT(*) FROM urls;")
+	if err != nil {
+		return 0, &storageErrors.StatementPSQLError{Err: err}
+	}
+	defer getURLsCountStmt.Close()
+
+	var count int
+	if err := getURLsCountStmt.QueryRowContext(ctx).Scan(&count); err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return 0, &storageErrors.NotFoundError{Err: dto.ErrNotFound}
+		default:
+			return 0, &storageErrors.ExecutionPSQLError{Err: err}
+		}
+	}
+	return count, nil
+}
+
+func (s *Storage) GetUserCount(ctx context.Context) (int, error) {
+	getUserCountStmt, err := s.DB.PrepareContext(ctx, "select COUNT(DISTINCT user_id) from users_url;")
+	if err != nil {
+		return 0, &storageErrors.StatementPSQLError{Err: err}
+	}
+	defer getUserCountStmt.Close()
+
+	var count int
+	if err := getUserCountStmt.QueryRowContext(ctx).Scan(&count); err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return 0, &storageErrors.NotFoundError{Err: dto.ErrNotFound}
+		default:
+			return 0, &storageErrors.ExecutionPSQLError{Err: err}
+		}
+	}
+	return count, nil
+}
+
 //**********************************************************************************************************************
 // ************************************ WAITING FOR A COMMENT FROM MENTORS *********************************************
 //**********************************************************************************************************************
