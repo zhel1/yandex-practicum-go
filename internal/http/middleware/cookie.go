@@ -33,13 +33,13 @@ func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 		var userID string
 		if errors.Is(err, http.ErrNoCookie) { //no cookie
 			userID = uuid.New().String()
-			http.SetCookie(w, h.CreateNewCookie(r.Context(), userID))
+			http.SetCookie(w, h.createNewCookie(r.Context(), userID))
 		} else if err != nil {
 			http.Error(w, "Cookie crumbled", http.StatusInternalServerError)
 		} else { //cookie found
 			userID, err = h.services.Users.CheckToken(r.Context(), userIDCookie.Value)
 			if err != nil {
-				http.SetCookie(w, h.CreateNewCookie(r.Context(), userID))
+				http.SetCookie(w, h.createNewCookie(r.Context(), userID))
 			}
 		}
 
@@ -48,21 +48,7 @@ func (h *CookieHandler) CookieHandler(next http.Handler) http.Handler {
 	})
 }
 
-func TakeUserID(context context.Context) (string, error) {
-	userIDCtx := ""
-	if id := context.Value(dto.UserIDCtxName); id != nil {
-		userIDCtx = id.(string)
-	}
-
-	if userIDCtx == "" {
-		return "", errors.New("empty user id")
-	}
-	return userIDCtx, nil
-}
-
-//**********************************************************************************************************************
-
-func (h *CookieHandler) CreateNewCookie(ctx context.Context, userID string) *http.Cookie {
+func (h *CookieHandler) createNewCookie(ctx context.Context, userID string) *http.Cookie {
 	token, err := h.services.Users.CreateNewToken(ctx, userID)
 	if err != nil {
 		panic(err.Error())

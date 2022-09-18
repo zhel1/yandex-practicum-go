@@ -108,6 +108,11 @@ func (s *Storage) GetUserCount(ctx context.Context) (int, error) {
 	return len(s.m), nil
 }
 
+//PingDB checks connection to DB
+func (s *Storage) PingDB() error {
+	return nil
+}
+
 // Close clears the map with user data.
 func (s *Storage) Close() error {
 	s.Lock()

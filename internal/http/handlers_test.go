@@ -83,22 +83,22 @@ func (ht *HandlersTestSuite) TestGetLink() {
 			wantCode: http.StatusTemporaryRedirect,
 		},
 		{
-			name:     "Positive test #1",
+			name:     "Positive test #2",
 			value:    "1234568",
 			wantCode: http.StatusTemporaryRedirect,
 		},
 		{
-			name:     "Negative test #2. No link in database.",
+			name:     "Negative test #3. No link in database.",
 			value:    "1234569",
 			wantCode: http.StatusBadRequest,
 		},
 		{
-			name:     "Negative test #3 . Not existing path.",
+			name:     "Negative test #4 . Not existing path.",
 			value:    "1234567/1234567",
 			wantCode: http.StatusNotFound,
 		},
 		{
-			name:     "Negative test #4. Empty path (redirection test).",
+			name:     "Negative test #5. Empty path (redirection test).",
 			value:    "",
 			wantCode: http.StatusNotFound,
 		},
@@ -185,4 +185,18 @@ func (ht *HandlersTestSuite) TestAddLink() {
 			}
 		})
 	}
+}
+
+func (ht *HandlersTestSuite) TestPing() {
+	ht.router.Use(ht.cookieHandler.CookieHandler)
+	ht.router.Get("/ping", ht.handler.Ping())
+	defer ht.ts.Close()
+
+	ht.T().Run("Ping", func(t *testing.T) {
+		client := resty.New()
+		resp, err := client.R().Get(ht.ts.URL + "/ping")
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode())
+	})
 }

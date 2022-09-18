@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package internal.rpc.proto;
+
+option go_package = "internal/rpc/proto";
+
+//to generate:
+//protoc.exe --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative  internal/rpc/proto/shortener.proto
+
+message AddLinkRequest {
+  string long_link = 1;
+}
+
+message AddLinkResponse {
+  string short_link = 1;
+}
+
+message GetLinkRequest {
+  string short_link = 1;
+}
+
+message GetLinkResponse {
+  string long_link = 1;
+}
+
+message PingRequest {
+
+}
+
+message PingResponse {
+
+}
+
+message AddLinkBatchRequest {
+  message Item {
+    string  correlation_id = 1;
+    string long_url = 2;
+  }
+  repeated Item items = 1;
+}
+
+message AddLinkBatchResponse {
+  message Item {
+    string correlation_id = 1;
+    string short_url = 2;
+  }
+  repeated Item items = 1;
+}
+
+message GetUsersLinksRequest {
+
+}
+
+message GetUsersLinksResponse {
+  message Item {
+    string long_url = 1;
+    string short_url = 2;
+  }
+  repeated Item items = 1;
+}
+
+message DeleteUserLinksBatchRequest {
+  repeated string items = 1;
+}
+
+message DeleteUserLinksBatchResponse {
+
+}
+
+message GetStatRequest {
+
+}
+
+message GetStatResponse {
+  int32  urls_cont = 1;
+  int32  users_cont = 2;
+}
+
+service Shortener {
+  rpc AddLink(AddLinkRequest) returns (AddLinkResponse);
+  rpc GetLink(GetLinkRequest) returns (GetLinkResponse);
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  rpc AddLinkBatch(AddLinkBatchRequest) returns (AddLinkBatchResponse);
+  rpc GetUserLinks(GetUsersLinksRequest) returns (GetUsersLinksResponse);
+  rpc DeleteUserLinksBatch(DeleteUserLinksBatchRequest) returns (DeleteUserLinksBatchResponse);
+
+  rpc GetStat(GetStatRequest) returns (GetStatResponse);
+}

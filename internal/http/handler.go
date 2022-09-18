@@ -9,6 +9,7 @@ import (
 	"github.com/zhel1/yandex-practicum-go/internal/http/middleware"
 	v1 "github.com/zhel1/yandex-practicum-go/internal/http/v1"
 	"github.com/zhel1/yandex-practicum-go/internal/service"
+	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"io"
 	"net/http"
 )
@@ -47,7 +48,7 @@ func (h *Handler) initAPI(router chi.Router) {
 // AddLink accepts a URL string in the request body for shortening.
 func (h *Handler) AddLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := middleware.TakeUserID(r.Context())
+		userID, err := utils.ExtractValueFromContext(r.Context(), dto.UserIDCtxName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

@@ -50,8 +50,12 @@ func (s *UserService) GetOriginalURLByShort(ctx context.Context, shortURL string
 	return s.storage.Get(ctx, shortURL)
 }
 
-func (s *UserService) GetURLsByUserID(ctx context.Context, UserID string) ([]dto.ModelURL, error) {
-	links, err := s.storage.GetUserLinks(ctx, UserID)
+func (s *UserService) GetURLsByUserID(ctx context.Context, userID string) ([]dto.ModelURL, error) {
+	if userID == "" {
+		return nil, dto.ErrInvalidArgument
+	}
+
+	links, err := s.storage.GetUserLinks(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +73,10 @@ func (s *UserService) GetURLsByUserID(ctx context.Context, UserID string) ([]dto
 }
 
 func (s *UserService) DeleteBatchURL(ctx context.Context, userID string, shortURLs []string) error {
+	if userID == "" {
+		return dto.ErrInvalidArgument
+	}
+
 	// perform asynchronous deletion
 	return s.storage.Delete(ctx, shortURLs, userID)
 }

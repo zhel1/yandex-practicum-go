@@ -67,20 +67,25 @@ func Run() {
 	}
 
 	services := service.NewServices(deps)
-	handlers := http.NewHandler(services)
 
-	// HTTP Server
-	srv := server.NewServer(&cfg, handlers.Init())
+	// HTTP server
+	handlers := http.NewHandler(services)
+	httpSrv := server.NewHTTPServer(&cfg, handlers.Init())
+
+	//GRPC server
+	grpcSrv := server.NewGRPCServer(&cfg, services)
+
 	connectionsClosed := make(chan struct{})
 	interrupt := make(chan os.Signal, 1)
-
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go func() {
 		<-interrupt
-		if err := srv.Stop(context.Background()); err != nil {
+		if err := httpSrv.Stop(context.Background()); err != nil {
 			log.Printf("HTTP server shutdown: %v", err)
 		}
+
+		grpcSrv.Stop()
 
 		if err := strg.Close(); err != nil {
 			log.Printf("Storage shutdown: %v", err)
@@ -89,9 +94,16 @@ func Run() {
 		close(connectionsClosed)
 	}()
 
-	if err := srv.Run(); err != nethttp.ErrServerClosed {
-		log.Fatalf("HTTP server ListenAndServe: %v", err)
-	}
+	go func() {
+		if err := httpSrv.Run(); err != nethttp.ErrServerClosed {
+			log.Fatalf("HTTP server ListenAndServe: %v", err)
+		}
+	}()
+
+	go func() {
+		grpcSrv.Run()
+	}()
+
 	<-connectionsClosed
 	log.Println("Server shutdown gracefully")
 }

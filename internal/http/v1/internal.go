@@ -19,6 +19,7 @@ func (h *Handler) GetStats() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ipStr := r.Header.Get("X-Real-IP")
 
+		//TODO move it in middleware
 		trusted, err := h.services.Security.IsIpAddrTrusted(r.Context(), ipStr)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -32,6 +32,10 @@ func (s *ShortenService) ShortenURL(ctx context.Context, userID string, URL dto.
 		return dto.ModelShortURL{}, err
 	}
 
+	if userID == "" {
+		return dto.ModelShortURL{}, dto.ErrInvalidArgument
+	}
+
 	shortIDLink := utils.MD5(URL.OriginalURL)[:8]
 
 	response := dto.ModelShortURL{
@@ -50,6 +54,10 @@ func (s *ShortenService) ShortenURL(ctx context.Context, userID string, URL dto.
 }
 
 func (s *ShortenService) ShortenBatchURL(ctx context.Context, userID string, URLs []dto.ModelOriginalURLBatch) ([]dto.ModelShortURLBatch, error) {
+	if userID == "" || len(URLs) == 0 {
+		return nil, dto.ErrInvalidArgument
+	}
+
 	bResArr := make([]dto.ModelShortURLBatch, 0, len(URLs))
 	batchForDB := make(map[string]string, len(URLs))
 
