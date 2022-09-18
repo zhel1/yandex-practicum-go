@@ -19,6 +19,7 @@ type Config struct {
 	UserKey         string `env:"USER_KEY" envDefault:"PaSsW0rD" json:"user_key"`
 	DatabaseDSN     string `env:"DATABASE_DSN"       json:"database_dsn"`
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS"       json:"enable_https"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"     json:"trusted_subnet"`
 	Config          string `env:"CONFIG"             json:"-"`
 }
 
@@ -47,6 +48,7 @@ func (c *Config) Parse() error {
 	flag.StringVar(&tempConf.UserKey, "p", "", "UserKey for encryption cookie")
 	flag.StringVar(&tempConf.DatabaseDSN, "d", "", "The line with the address to connect to the database")
 	flag.BoolVar(&tempConf.EnableHTTPS, "s", false, "Enable HTTPS mode in web-server")
+	flag.StringVar(&tempConf.TrustedSubnet, "t", "192.168.1.0/24", "Trusted subnet")
 	flag.StringVar(&tempConf.Config, "config", "", "Config file")
 	flag.StringVar(&tempConf.Config, "c", "", "Config file")
 	flag.Parse()
@@ -81,6 +83,9 @@ func (c *Config) Parse() error {
 	}
 	if isFlagPassed("s") {
 		c.EnableHTTPS = tempConf.EnableHTTPS
+	}
+	if isFlagPassed("t") {
+		c.TrustedSubnet = tempConf.TrustedSubnet
 	}
 
 	// settings redefinition from evn

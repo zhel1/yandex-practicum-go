@@ -19,4 +19,5 @@ func NewHandler(services *service.Services) *Handler {
 func (h *Handler) Init(r chi.Router) {
 	h.initShortenRoutes(r)
 	h.initUserRoutes(r)
+	h.initInternalRoutes(r)
 }

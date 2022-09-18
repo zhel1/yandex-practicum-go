@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/zhel1/yandex-practicum-go/internal/http/middleware"
+	"github.com/zhel1/yandex-practicum-go/internal/dto"
+	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"net/http"
 )
 
@@ -20,7 +21,7 @@ func (h *Handler) initUserRoutes(r chi.Router) {
 // GetUserLinks returns to the user all links ever saved by him.
 func (h *Handler) GetUserLinks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := middleware.TakeUserID(r.Context())
+		userID, err := utils.ExtractValueFromContext(r.Context(), dto.UserIDCtxName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -54,7 +55,7 @@ func (h *Handler) GetUserLinks() http.HandlerFunc {
 // DeleteUserLinksBatch accepts a list of abbreviated URL IDs to delete.
 func (h *Handler) DeleteUserLinksBatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := middleware.TakeUserID(r.Context())
+		userID, err := utils.ExtractValueFromContext(r.Context(), dto.UserIDCtxName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

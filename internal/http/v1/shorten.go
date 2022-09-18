@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/zhel1/yandex-practicum-go/internal/dto"
-	"github.com/zhel1/yandex-practicum-go/internal/http/middleware"
+	"github.com/zhel1/yandex-practicum-go/internal/utils"
 	"net/http"
 )
 
@@ -22,7 +22,7 @@ func (h *Handler) initShortenRoutes(r chi.Router) {
 // AddLinkJSON accepts a JSON object in the request body and returning a JSON object in response.
 func (h *Handler) AddLinkJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := middleware.TakeUserID(r.Context())
+		userID, err := utils.ExtractValueFromContext(r.Context(), dto.UserIDCtxName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -62,7 +62,7 @@ func (h *Handler) AddLinkJSON() http.HandlerFunc {
 // AddLinkBatchJSON accepts in the request body a set of URLs for shortening in the format.
 func (h *Handler) AddLinkBatchJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := middleware.TakeUserID(r.Context())
+		userID, err := utils.ExtractValueFromContext(r.Context(), dto.UserIDCtxName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

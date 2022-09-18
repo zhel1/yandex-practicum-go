@@ -94,6 +94,25 @@ func (s *Storage) Delete(ctx context.Context, shortURLs []string, userID string)
 	return nil
 }
 
+// GetURLsCount returns the mount of all urls in DB
+func (s *Storage) GetURLsCount(ctx context.Context) (int, error) {
+	urlsCount := 0
+	for _, userData := range s.m {
+		urlsCount = +len(userData.URLs)
+	}
+	return urlsCount, nil
+}
+
+// GetURLsCount returns the mount of all users in DB
+func (s *Storage) GetUserCount(ctx context.Context) (int, error) {
+	return len(s.m), nil
+}
+
+//PingDB checks connection to DB
+func (s *Storage) PingDB() error {
+	return nil
+}
+
 // Close clears the map with user data.
 func (s *Storage) Close() error {
 	s.Lock()

@@ -36,4 +36,7 @@ type Storage interface {
 	PutBatch(ctx context.Context, userID string, batchForDB map[string]string) error
 	Delete(ctx context.Context, shortURLs []string, userID string) error
 	Close() error
+
+	GetURLsCount(ctx context.Context) (int, error)
+	GetUserCount(ctx context.Context) (int, error)
 }
