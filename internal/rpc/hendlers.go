@@ -139,7 +139,7 @@ func (s *ShortenerServer) GetUserLinks(ctx context.Context, in *pb.GetUsersLinks
 	}
 
 	if len(modelURLs) == 0 {
-		return nil, status.Error(codes.NotFound, err.Error())
+		return &pb.GetUsersLinksResponse{}, nil
 	}
 
 	respItems := make([]*pb.GetUsersLinksResponse_Item, 0, len(modelURLs))
